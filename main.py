@@ -117,4 +117,8 @@ app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=5522, reload=True)
+    port = int(os.environ.get("PORT", 5522))
+    # Bind to 0.0.0.0 in production/cloud, 127.0.0.1 for local dev
+    host = "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"
+    reload = False if "PORT" in os.environ else True
+    uvicorn.run("main:app", host=host, port=port, reload=reload)
