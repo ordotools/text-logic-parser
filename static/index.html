@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aristotelian Logic Analyzer</title>
+    <!-- Google Fonts: Playfair Display for Classical style, Outfit for premium modern text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-decorations">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fa-solid fa-scale-balanced logo-icon"></i>
+                <div class="logo-text">
+                    <h1>Lyceum</h1>
+                    <span>Aristotelian Logic Analyzer</span>
+                </div>
+            </div>
+            <div class="header-badge">
+                <span class="badge-text"><i class="fa-solid fa-microchip icon"></i> Hybrid AI & Algorithmic Proof</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <!-- Input section -->
+        <section class="card input-card animate-fade-in">
+            <div class="card-header">
+                <h2><i class="fa-solid fa-pen-nib"></i> Analyze Student Essay</h2>
+                <p>Paste a student essay below. The analyzer will extract its underlying logical arguments using AI and strictly evaluate their validity using deterministic rules of classical logic.</p>
+            </div>
+            
+            <div class="essay-textarea-wrapper">
+                <textarea id="essay-input" placeholder="Paste student essay here...
+
+Example of logical essay snippet:
+Socrates is mortal because he is a man. Furthermore, all men are mortal. However, since all gods are immortal and no men are gods, some think we are divine. But actually, no men are immortal. Therefore, Socrates is not immortal."></textarea>
+                <div class="sample-actions">
+                    <button type="button" id="load-sample-btn" class="btn-secondary"><i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Essay</button>
+                    <button type="button" id="clear-btn" class="btn-tertiary"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                </div>
+            </div>
+
+            <div class="action-bar">
+                <button type="button" id="analyze-btn" class="btn-primary">
+                    <span class="btn-text"><i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Logical Structure</span>
+                    <span class="btn-loading-spinner hidden"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing with Gemini AI...</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Loader state -->
+        <div id="loading-state" class="loader-container hidden">
+            <div class="spin-ring">
+                <div class="spin-core"></div>
+            </div>
+            <h3>Reading Essay & Unifying Terms...</h3>
+            <p>Gemini AI is identifying premises and structuring them into formal categorical propositions.</p>
+        </div>
+
+        <!-- Results section -->
+        <section id="results-section" class="results-container hidden animate-fade-in">
+            <div class="results-overview">
+                <div class="overview-header">
+                    <h2><i class="fa-solid fa-chart-column"></i> Analysis Dashboard</h2>
+                    <span id="results-count-badge" class="count-badge">0 Arguments Extracted</span>
+                </div>
+                <div class="overview-grid">
+                    <div class="overview-stat card">
+                        <i class="fa-solid fa-circle-check stat-icon success"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-valid">0</span>
+                            <span class="stat-label">Logically Valid</span>
+                        </div>
+                    </div>
+                    <div class="overview-stat card">
+                        <i class="fa-solid fa-triangle-exclamation stat-icon danger"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-invalid">0</span>
+                            <span class="stat-label">Fallacies Detected</span>
+                        </div>
+                    </div>
+                    <div class="overview-stat card">
+                        <i class="fa-solid fa-circle-info stat-icon warning"></i>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-warnings">0</span>
+                            <span class="stat-label">Modern Caveats</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arguments List -->
+            <div id="arguments-list" class="arguments-list">
+                <!-- Argument Cards will be dynamically inserted here -->
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="footer-content">
+            <p>&copy; 2026 Lyceum Logic Engine. Built for Educators.</p>
+            <div class="footer-links">
+                <span><i class="fa-solid fa-book-atlas"></i> Aristotelian Organon</span>
+                <span><i class="fa-solid fa-shield-halved"></i> Deterministic Proofs</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Template for Argument Card (Hidden) -->
+    <template id="argument-card-template">
+        <article class="card argument-card animate-slide-up">
+            <div class="arg-card-header">
+                <div class="arg-title-area">
+                    <span class="arg-index">Argument #1</span>
+                    <h3>Syllogism Analysis</h3>
+                </div>
+                <div class="status-badge" data-status="">
+                    <i class="fa-solid fa-shield"></i> <span class="status-text">Valid</span>
+                </div>
+            </div>
+
+            <!-- Excerpt from Essay -->
+            <div class="arg-excerpt">
+                <span class="excerpt-label"><i class="fa-solid fa-quote-left"></i> Raw Essay Excerpt:</span>
+                <blockquote class="excerpt-text">"..."</blockquote>
+            </div>
+
+            <!-- Main Split Layout -->
+            <div class="arg-body-grid">
+                <!-- Reconstructed Formal Syllogism -->
+                <div class="syllogism-structure">
+                    <h4><i class="fa-solid fa-sitemap"></i> Reconstructed Syllogism</h4>
+                    
+                    <div class="propositions-list">
+                        <!-- Premise 1 -->
+                        <div class="prop-row premise-1">
+                            <div class="prop-header">
+                                <span class="prop-label">Major Premise</span>
+                                <span class="prop-badge type-code">A</span>
+                                <span class="prop-badge implicit-badge hidden">Implicit</span>
+                            </div>
+                            <div class="prop-content">
+                                <span class="quantifier">All</span>
+                                <span class="subject">men</span>
+                                <span class="copula">are</span>
+                                <span class="predicate">mortal</span>
+                            </div>
+                            <div class="distribution-tags">
+                                <span class="dist-tag subject-dist" data-dist="true">Subject: Distributed</span>
+                                <span class="dist-tag predicate-dist" data-dist="false">Predicate: Undistributed</span>
+                            </div>
+                        </div>
+
+                        <!-- Premise 2 -->
+                        <div class="prop-row premise-2">
+                            <div class="prop-header">
+                                <span class="prop-label">Minor Premise</span>
+                                <span class="prop-badge type-code">Singular Affirmative</span>
+                                <span class="prop-badge implicit-badge hidden">Implicit</span>
+                            </div>
+                            <div class="prop-content">
+                                <span class="quantifier"></span>
+                                <span class="subject">Socrates</span>
+                                <span class="copula">is</span>
+                                <span class="predicate">a man</span>
+                            </div>
+                            <div class="distribution-tags">
+                                <span class="dist-tag subject-dist" data-dist="true">Subject: Distributed</span>
+                                <span class="dist-tag predicate-dist" data-dist="false">Predicate: Undistributed</span>
+                            </div>
+                        </div>
+
+                        <!-- Divider line -->
+                        <hr class="conclusion-divider">
+
+                        <!-- Conclusion -->
+                        <div class="prop-row conclusion-prop">
+                            <div class="prop-header">
+                                <span class="prop-label">Conclusion</span>
+                                <span class="prop-badge type-code">Singular Affirmative</span>
+                            </div>
+                            <div class="prop-content">
+                                <span class="quantifier"></span>
+                                <span class="subject">Socrates</span>
+                                <span class="copula">is</span>
+                                <span class="predicate">mortal</span>
+                            </div>
+                            <div class="distribution-tags">
+                                <span class="dist-tag subject-dist" data-dist="true">Subject: Distributed</span>
+                                <span class="dist-tag predicate-dist" data-dist="false">Predicate: Undistributed</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Euler Diagram & Terms -->
+                <div class="arg-visuals">
+                    <h4><i class="fa-solid fa-diagram-project"></i> Euler / Terms Diagram</h4>
+                    <div class="euler-container">
+                        <!-- Dynamic SVG will be rendered here -->
+                        <div class="svg-diagram-wrapper"></div>
+                    </div>
+                    <div class="terms-legend">
+                        <div class="term-legend-row"><span class="term-circle s-circle"></span> <span class="term-text"><strong>Minor Term (S):</strong> <span class="term-minor-val">Socrates</span></span></div>
+                        <div class="term-legend-row"><span class="term-circle p-circle"></span> <span class="term-text"><strong>Major Term (P):</strong> <span class="term-major-val">mortal</span></span></div>
+                        <div class="term-legend-row"><span class="term-circle m-circle"></span> <span class="term-text"><strong>Middle Term (M):</strong> <span class="term-middle-val">man</span></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fallacies and Warnings -->
+            <div class="arg-fallacies-section hidden">
+                <h4><i class="fa-solid fa-triangle-exclamation"></i> Logic Rule Violations</h4>
+                <div class="fallacies-list">
+                    <!-- Fallacy cards will be dynamically inserted here -->
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>

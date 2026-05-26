@@ -1,0 +1,948 @@
+/* ==========================================================================
+   Lyceum Logic Analyzer - Design System CSS
+   A premium dark slate and classical gold theme representing antique wisdom and modern precision.
+   ========================================================================== */
+
+/* Design Tokens & Theme Variables */
+:root {
+    /* Color Palette */
+    --bg-dark: #0a0d16;
+    --bg-card: rgba(21, 28, 44, 0.75);
+    --bg-card-hover: rgba(28, 38, 59, 0.85);
+    --border-color: rgba(223, 168, 55, 0.15);
+    --border-color-hover: rgba(223, 168, 55, 0.35);
+    
+    /* Text Colors */
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    /* Brand Accents (Classical Gold) */
+    --color-gold: #dfa837;
+    --color-gold-hover: #fcd34d;
+    --color-gold-muted: rgba(223, 168, 55, 0.3);
+    --gold-gradient: linear-gradient(135deg, #dfa837 0%, #b47e1b 100%);
+    
+    /* Logic Status Colors */
+    --color-success: #10b981;
+    --color-success-bg: rgba(16, 185, 129, 0.1);
+    --color-success-border: rgba(16, 185, 129, 0.25);
+    
+    --color-danger: #f43f5e;
+    --color-danger-bg: rgba(244, 63, 94, 0.1);
+    --color-danger-border: rgba(244, 63, 94, 0.25);
+    
+    --color-warning: #f59e0b;
+    --color-warning-bg: rgba(245, 158, 11, 0.1);
+    --color-warning-border: rgba(245, 158, 11, 0.25);
+
+    /* UI Term Diagram Colors */
+    --color-term-s: #3b82f6; /* Blue for Subject / Minor Term */
+    --color-term-p: #ec4899; /* Pink/Purple for Predicate / Major Term */
+    --color-term-m: #eab308; /* Yellow/Gold for Middle Term */
+
+    /* Typography */
+    --font-ui: 'Outfit', sans-serif;
+    --font-classical: 'Playfair Display', serif;
+    
+    /* Effects */
+    --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+    --glass-blur: blur(12px);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   Base Elements & Layout
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    line-height: 1.6;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ambient Background Glow Orbs */
+.background-decorations {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(150px);
+    opacity: 0.15;
+}
+
+.orb-1 {
+    top: -10%;
+    right: 10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, var(--color-gold) 0%, transparent 70%);
+}
+
+.orb-2 {
+    bottom: 5%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, #1e3a8a 0%, transparent 70%);
+}
+
+/* ==========================================================================
+   Header Design
+   ========================================================================== */
+
+.app-header {
+    background: rgba(10, 13, 22, 0.8);
+    backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.25rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.logo-icon {
+    font-size: 2rem;
+    color: var(--color-gold);
+    background: linear-gradient(135deg, #dfa837, #b47e1b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 8px rgba(223, 168, 55, 0.3));
+}
+
+.logo-text h1 {
+    font-family: var(--font-classical);
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+}
+
+.logo-text span {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--color-gold);
+    display: block;
+    margin-top: -2px;
+}
+
+.header-badge {
+    background: rgba(223, 168, 55, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    padding: 0.5rem 1.25rem;
+}
+
+.badge-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-gold);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Grid & Core Container
+   ========================================================================== */
+
+.app-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    width: 100%;
+}
+
+/* Premium Card Style (Glassmorphism) */
+.card {
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: var(--card-shadow);
+    transition: var(--transition-smooth);
+}
+
+.card:hover {
+    border-color: var(--border-color-hover);
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.8);
+}
+
+/* Card Header */
+.card-header h2 {
+    font-family: var(--font-classical);
+    font-size: 2rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: linear-gradient(135deg, var(--text-primary) 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card-header p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   Textarea & Inputs
+   ========================================================================== */
+
+.essay-textarea-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+textarea {
+    width: 100%;
+    min-height: 240px;
+    background: rgba(10, 13, 22, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    resize: vertical;
+    transition: var(--transition-smooth);
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 15px rgba(223, 168, 55, 0.15);
+}
+
+.sample-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn-primary, .btn-secondary, .btn-tertiary {
+    font-family: var(--font-ui);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: var(--transition-smooth);
+}
+
+.btn-primary {
+    background: var(--gold-gradient);
+    border: 1px solid rgba(223, 168, 55, 0.4);
+    color: #0c0f17;
+    padding: 1rem 2rem;
+    width: 100%;
+    max-width: 320px;
+    font-size: 1.05rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(223, 168, 55, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #fcd34d 0%, #dfa837 100%);
+    box-shadow: 0 6px 24px rgba(223, 168, 55, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: rgba(223, 168, 55, 0.08);
+    border: 1px solid var(--border-color);
+    color: var(--color-gold);
+    padding: 0.6rem 1.25rem;
+}
+
+.btn-secondary:hover {
+    background: rgba(223, 168, 55, 0.15);
+    border-color: var(--color-gold);
+    color: var(--text-primary);
+}
+
+.btn-tertiary {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 0.6rem 1.25rem;
+}
+
+.btn-tertiary:hover {
+    color: var(--color-danger);
+}
+
+.action-bar {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+.loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+}
+
+.spin-ring {
+    width: 64px;
+    height: 64px;
+    border: 4px solid rgba(223, 168, 55, 0.1);
+    border-top: 4px solid var(--color-gold);
+    border-radius: 50%;
+    animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.spin-core {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    background: var(--color-gold);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.loader-container h3 {
+    font-family: var(--font-classical);
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.loader-container p {
+    color: var(--text-secondary);
+    max-width: 400px;
+}
+
+/* ==========================================================================
+   Analysis Dashboard Summary Stats
+   ========================================================================== */
+
+.results-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.overview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+.overview-header h2 {
+    font-family: var(--font-classical);
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.count-badge {
+    background: var(--color-gold-muted);
+    border: 1px solid var(--border-color);
+    color: var(--color-gold);
+    padding: 0.4rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+.overview-stat {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem 2rem;
+}
+
+.stat-icon {
+    font-size: 2.25rem;
+    border-radius: 12px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+}
+
+.stat-icon.success {
+    color: var(--color-success);
+    background: var(--color-success-bg);
+    border: 1px solid var(--color-success-border);
+}
+
+.stat-icon.danger {
+    color: var(--color-danger);
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+}
+
+.stat-icon.warning {
+    color: var(--color-warning);
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Argument Cards & Results Presentation
+   ========================================================================== */
+
+.arguments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.argument-card {
+    padding: 2.5rem;
+}
+
+.arg-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.arg-title-area {
+    display: flex;
+    flex-direction: column;
+}
+
+.arg-index {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--color-gold);
+    font-weight: 600;
+}
+
+.arg-title-area h3 {
+    font-family: var(--font-classical);
+    font-size: 1.6rem;
+    color: var(--text-primary);
+}
+
+/* Status Badge styling */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.status-badge[data-status="valid"] {
+    background: var(--color-success-bg);
+    border: 1px solid var(--color-success-border);
+    color: var(--color-success);
+}
+
+.status-badge[data-status="invalid"] {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+    color: var(--color-danger);
+}
+
+.status-badge[data-status="warning"] {
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+    color: var(--color-warning);
+}
+
+/* Raw Essay Excerpt Styling */
+.arg-excerpt {
+    background: rgba(10, 13, 22, 0.4);
+    border-left: 3px solid var(--color-gold);
+    padding: 1.25rem 1.5rem;
+    border-radius: 0 12px 12px 0;
+    margin-bottom: 2rem;
+}
+
+.excerpt-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-gold);
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.excerpt-text {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+}
+
+/* Split Grid Layout for Logic and Visuals */
+.arg-body-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 2.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+    .arg-body-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.syllogism-structure h4, .arg-visuals h4, .arg-fallacies-section h4 {
+    font-family: var(--font-classical);
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid rgba(223, 168, 55, 0.1);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Syllogistic Proposition Row Layouts */
+.propositions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.prop-row {
+    background: rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 1.25rem;
+    position: relative;
+    transition: var(--transition-smooth);
+}
+
+.prop-row:hover {
+    border-color: rgba(223, 168, 55, 0.15);
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.prop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.prop-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.prop-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.prop-badge.type-code {
+    background: rgba(223, 168, 55, 0.05);
+    border-color: rgba(223, 168, 55, 0.2);
+    color: var(--color-gold);
+}
+
+.prop-badge.implicit-badge {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: #60a5fa;
+}
+
+/* Formal term segments highlight */
+.prop-content {
+    font-size: 1.15rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.prop-content span {
+    display: inline-block;
+    padding: 0.1rem 0.25rem;
+    border-radius: 4px;
+}
+
+.prop-content .quantifier {
+    color: var(--text-muted);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.prop-content .subject {
+    color: var(--color-term-s);
+    background: rgba(59, 130, 246, 0.08);
+    font-weight: 600;
+}
+
+.prop-content .copula {
+    color: var(--text-primary);
+    font-weight: 400;
+}
+
+.prop-content .predicate {
+    color: var(--color-term-p);
+    background: rgba(236, 72, 153, 0.08);
+    font-weight: 600;
+}
+
+/* Distribution details styling */
+.distribution-tags {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.dist-tag {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+}
+
+.dist-tag[data-dist="true"] {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.dist-tag[data-dist="false"] {
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.15);
+    color: #f87171;
+}
+
+.conclusion-divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(223, 168, 55, 0.2) 20%, rgba(223, 168, 55, 0.2) 80%, transparent);
+    margin: 0.5rem 0;
+}
+
+.conclusion-prop {
+    background: rgba(223, 168, 55, 0.02);
+    border: 1px dashed rgba(223, 168, 55, 0.25);
+}
+
+.conclusion-prop:hover {
+    background: rgba(223, 168, 55, 0.05);
+    border-color: rgba(223, 168, 55, 0.5);
+}
+
+/* ==========================================================================
+   Visual SVG Euler Diagrams
+   ========================================================================== */
+
+.euler-container {
+    background: rgba(10, 13, 22, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.svg-diagram-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.svg-diagram-wrapper svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.terms-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.term-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.term-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.term-circle.s-circle { background-color: var(--color-term-s); box-shadow: 0 0 8px var(--color-term-s); }
+.term-circle.p-circle { background-color: var(--color-term-p); box-shadow: 0 0 8px var(--color-term-p); }
+.term-circle.m-circle { background-color: var(--color-term-m); box-shadow: 0 0 8px var(--color-term-m); }
+
+.term-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.term-text strong {
+    color: var(--text-primary);
+}
+
+/* ==========================================================================
+   Fallacies Violation presentation
+   ========================================================================== */
+
+.arg-fallacies-section {
+    margin-top: 2.5rem;
+}
+
+.fallacies-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.fallacy-violation-card {
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: var(--transition-smooth);
+}
+
+.fallacy-violation-card[data-warning="false"] {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger-border);
+}
+
+.fallacy-violation-card[data-warning="true"] {
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+}
+
+.fallacy-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.fallacy-title-row i {
+    font-size: 1.2rem;
+}
+
+.fallacy-violation-card[data-warning="false"] .fallacy-title-row {
+    color: var(--color-danger);
+}
+
+.fallacy-violation-card[data-warning="true"] .fallacy-title-row {
+    color: var(--color-warning);
+}
+
+.fallacy-title-row h5 {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.fallacy-desc {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.fallacy-details {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-style: italic;
+    background: rgba(10, 13, 22, 0.4);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    margin-top: 0.25rem;
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.app-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 2.5rem 0;
+    margin-top: auto;
+    background: rgba(10, 13, 22, 0.9);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-content p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.footer-links {
+    display: flex;
+    gap: 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.footer-links span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+    .footer-content {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+}
+
+/* ==========================================================================
+   Animations Keyframes & Utilities
+   ========================================================================== */
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.7; }
+    50% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+    animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
