@@ -1,6 +1,9 @@
 import os
 import sys
-from fastapi import FastAPI, HTTPException
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Any
@@ -8,13 +11,90 @@ from typing import List, Dict, Any
 # Ensure src/ is in the python search path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
-from text_logic_parser import Proposition, Syllogism, validate_syllogism, AIExtractor
+from text_logic_parser import (
+    Proposition, 
+    Syllogism, 
+    parse_syllogism,
+    validate_syllogism, 
+    AIExtractor, 
+    settings, 
+    GeminiConfigurationError, 
+    GeminiAPIError
+)
+
+# Setup logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("text_logic_parser")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup check
+    if not settings.gemini_api_key:
+        logger.warning(
+            "\n"
+            "========================================================================\n"
+            "⚠️  WARNING: GEMINI_API_KEY environment variable is not configured.     \n"
+            "The AI essay extraction feature will fail with a 412 status code        \n"
+            "until a valid API key is supplied in the environment or a .env file.   \n"
+            "========================================================================\n"
+        )
+    else:
+        logger.info(f"Gemini API key loaded. Using model: {settings.gemini_model}")
+    yield
 
 app = FastAPI(
     title="Aristotelian Logic Essay Analyzer",
     description="Analyze student essays for logical validity using Aristotelian syllogistic rules.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
+
+@app.exception_handler(GeminiConfigurationError)
+async def gemini_configuration_error_handler(request: Request, exc: GeminiConfigurationError):
+    return JSONResponse(
+        status_code=412,
+        content={
+            "success": False,
+            "error": "Gemini API Key Missing",
+            "message": str(exc),
+            "resolution": "Please set the GEMINI_API_KEY environment variable. You can do this by creating a '.env' file in the project root with 'GEMINI_API_KEY=your_key_here' or by setting it in your shell environment."
+        }
+    )
+
+@app.exception_handler(GeminiAPIError)
+async def gemini_api_error_handler(request: Request, exc: GeminiAPIError):
+    # Determine user-friendly messages and appropriate status codes
+    status_code = exc.status_code
+    
+    if status_code == 429:
+        message = "Gemini API rate limit or quota exceeded. Please wait a moment before trying again."
+        resolution = "Check your Gemini API quota and usage limits on the Google AI Studio console."
+    elif status_code == 403:
+        message = "Gemini API authorization failed. The configured API key is invalid or unauthorized."
+        resolution = "Please verify that the GEMINI_API_KEY environment variable is set to a valid, active API key from Google AI Studio."
+    elif status_code == 400:
+        message = f"Gemini API Bad Request: {exc.message}"
+        resolution = "Ensure the request structure and parameters (including the model name) are valid."
+    elif status_code in (503, 504):
+        message = exc.message
+        resolution = "Check network connectivity and the status of Google Gemini API services."
+    else:
+        message = exc.message
+        resolution = "If this persists, verify your Gemini account standing and internet connection."
+        # Map generic upstream errors or 5xx to 502 Bad Gateway
+        if status_code >= 500 or status_code not in (400, 401, 403, 404, 429):
+            status_code = 502
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "error": "Gemini API Failure",
+            "message": message,
+            "status_code": exc.status_code,
+            "resolution": resolution
+        }
+    )
 
 class EssayRequest(BaseModel):
     text: str
@@ -25,6 +105,57 @@ async def analyze_essay(request: EssayRequest):
         raise HTTPException(status_code=400, detail="Essay text cannot be empty.")
         
     try:
+        # 1. Attempt fast local parsing for strict logical arguments
+        try:
+            syll = parse_syllogism(request.text)
+            if len(syll.premises) == 2:
+                # Valid strict structure, bypass Gemini!
+                violations = validate_syllogism(syll)
+                is_valid = not any(not v.get("is_warning", False) for v in violations)
+                
+                formatted_premises = []
+                for p in syll.premises:
+                    formatted_premises.append({
+                        "quantifier": p.quantifier,
+                        "subject": p.subject,
+                        "copula": p.copula,
+                        "predicate": p.predicate,
+                        "is_implicit": p.is_implicit,
+                        "type_code": p.type_code,
+                        "is_subject_distributed": p.is_subject_distributed,
+                        "is_predicate_distributed": p.is_predicate_distributed
+                    })
+                    
+                formatted_conclusion = {
+                    "quantifier": syll.conclusion.quantifier,
+                    "subject": syll.conclusion.subject,
+                    "copula": syll.conclusion.copula,
+                    "predicate": syll.conclusion.predicate,
+                    "type_code": syll.conclusion.type_code,
+                    "is_subject_distributed": syll.conclusion.is_subject_distributed,
+                    "is_predicate_distributed": syll.conclusion.is_predicate_distributed
+                }
+                
+                return {
+                    "success": True,
+                    "arguments": [{
+                        "original_text": request.text,
+                        "reconstructed_syllogism": {
+                            "premises": formatted_premises,
+                            "conclusion": formatted_conclusion
+                        },
+                        "minor_term": syll.minor_term,
+                        "major_term": syll.major_term,
+                        "middle_term": syll.middle_term,
+                        "violations": violations,
+                        "is_valid": is_valid
+                    }]
+                }
+        except Exception:
+            # Fallback to AI Extractor
+            pass
+
+        # 2. Main pipeline using Gemini AI for unstructured essays
         extractor = AIExtractor()
         extracted_args = extractor.extract_arguments(request.text)
         
@@ -106,6 +237,8 @@ async def analyze_essay(request: EssayRequest):
             "arguments": response_arguments
         }
         
+    except (GeminiConfigurationError, GeminiAPIError):
+        raise
     except Exception as e:
         print(f"Error analyzing essay: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to analyze essay: {str(e)}")

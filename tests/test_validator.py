@@ -121,3 +121,22 @@ def test_four_terms_fallacy():
     
     codes = [v["code"] for v in violations]
     assert "four_terms" in codes
+
+def test_four_terms_resolved_with_spacy():
+    # Test that plural vs singular "warm-blooded reptiles" vs "warm-blooded reptile" unifies correctly
+    # and does NOT trigger four terms fallacy.
+    # Premise 1: All warm-blooded reptiles are active.
+    # Premise 2: This animal is a warm-blooded reptile.
+    # Conclusion: Therefore this animal is active.
+    p1 = Proposition("all", "warm-blooded reptiles", "are", "active")
+    p2 = Proposition(None, "this animal", "is", "a warm-blooded reptile")
+    conc = Proposition(None, "this animal", "is", "active")
+    
+    syll = Syllogism([p1, p2], conc)
+    violations = validate_syllogism(syll)
+    
+    # Check that there are no four terms fallacy violations
+    codes = [v["code"] for v in violations]
+    assert "four_terms" not in codes
+    assert len(violations) == 0
+

@@ -172,7 +172,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
             // Draw Euler/Venn Diagram
             const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
-            const svgContent = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status);
+            const svgContent = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion);
             diagramWrapper.innerHTML = svgContent;
 
             // Fill Legend
@@ -252,7 +252,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         pDist.textContent = `Predicate: ${propData.is_predicate_distributed ? 'Distributed' : 'Undistributed'}`;
     }
 
-    function drawEulerDiagram(minor, major, middle, status) {
+    function drawEulerDiagram(minor, major, middle, status, premises, conclusion) {
         // Safe string truncated for labels
         const S = truncate(minor, 12);
         const P = truncate(major, 12);
@@ -284,6 +284,169 @@ However, others claim that all cats are animals and all dogs are animals, which 
             filterShadow = `style="filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.25))"`;
         }
 
+        let shadingSvg = "";
+        let xSvg = "";
+
+        if (minor && major && middle && premises && premises.length > 0) {
+            const shadedRegions = Array(8).fill(false);
+            const xPositions = [];
+
+            // Helper to get role of a term
+            const getTermRole = (termText, minT, majT, midT) => {
+                const norm = (t) => {
+                    if (!t) return "";
+                    let s = t.trim().toLowerCase();
+                    s = s.replace(/^(a|an|the)\s+/, "");
+                    if (s.endsWith("es")) s = s.slice(0, -2);
+                    else if (s.endsWith("s")) s = s.slice(0, -1);
+                    return s.trim();
+                };
+                
+                const termNorm = norm(termText);
+                const sNorm = norm(minT);
+                const pNorm = norm(majT);
+                const mNorm = norm(midT);
+                
+                if (termNorm === sNorm) return "S";
+                if (termNorm === pNorm) return "P";
+                if (termNorm === mNorm) return "M";
+                
+                if (sNorm.includes(termNorm) || termNorm.includes(sNorm)) return "S";
+                if (pNorm.includes(termNorm) || termNorm.includes(pNorm)) return "P";
+                if (mNorm.includes(termNorm) || termNorm.includes(mNorm)) return "M";
+                
+                return null;
+            };
+
+            const regionCenters = {
+                1: { x: 65, y: 145 },   // S only
+                2: { x: 215, y: 145 },  // P only
+                3: { x: 140, y: 55 },   // M only
+                4: { x: 110, y: 105 },  // S & M only
+                5: { x: 170, y: 105 },  // P & M only
+                6: { x: 140, y: 142 },  // S & P only
+                7: { x: 140, y: 125 }   // S & P & M
+            };
+
+            const borderPoints = {
+                "4-7": { x: 139, y: 120 },
+                "5-7": { x: 141, y: 120 },
+                "6-7": { x: 140, y: 133 }
+            };
+
+            const getRelationRegions = (subjRole, predRole, typeCode) => {
+                let shade = [];
+                let x = [];
+                const key = `${subjRole}-${predRole}`;
+                
+                if (key === "S-M") {
+                    if (typeCode === "A") shade = [1, 6];
+                    else if (typeCode === "E") shade = [4, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [4, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [1, 6];
+                } else if (key === "M-S") {
+                    if (typeCode === "A") shade = [3, 5];
+                    else if (typeCode === "E") shade = [4, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [4, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [3, 5];
+                } else if (key === "P-M") {
+                    if (typeCode === "A") shade = [2, 6];
+                    else if (typeCode === "E") shade = [5, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [5, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [2, 6];
+                } else if (key === "M-P") {
+                    if (typeCode === "A") shade = [3, 4];
+                    else if (typeCode === "E") shade = [5, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [5, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [3, 4];
+                } else if (key === "S-P") {
+                    if (typeCode === "A") shade = [1, 4];
+                    else if (typeCode === "E") shade = [6, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [6, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [1, 4];
+                } else if (key === "P-S") {
+                    if (typeCode === "A") shade = [2, 5];
+                    else if (typeCode === "E") shade = [6, 7];
+                    else if (typeCode === "I" || typeCode === "Singular Affirmative") x = [6, 7];
+                    else if (typeCode === "O" || typeCode === "Singular Negative") x = [2, 5];
+                }
+                return { shade, x };
+            };
+
+            // First pass: Process universal premises to shade regions
+            premises.forEach(p => {
+                const sRole = getTermRole(p.subject, minor, major, middle);
+                const pRole = getTermRole(p.predicate, minor, major, middle);
+                if (sRole && pRole) {
+                    const rel = getRelationRegions(sRole, pRole, p.type_code);
+                    rel.shade.forEach(r => {
+                        shadedRegions[r] = true;
+                    });
+                }
+            });
+
+            // Second pass: Process particular / singular premises to place 'X'
+            premises.forEach(p => {
+                const sRole = getTermRole(p.subject, minor, major, middle);
+                const pRole = getTermRole(p.predicate, minor, major, middle);
+                if (sRole && pRole) {
+                    const rel = getRelationRegions(sRole, pRole, p.type_code);
+                    if (rel.x && rel.x.length > 0) {
+                        // Find unshaded candidates
+                        const unshaded = rel.x.filter(r => !shadedRegions[r]);
+                        if (unshaded.length === 1) {
+                            xPositions.push(regionCenters[unshaded[0]]);
+                        } else if (unshaded.length === 2) {
+                            const key = `${unshaded[0]}-${unshaded[1]}`;
+                            const revKey = `${unshaded[1]}-${unshaded[0]}`;
+                            const pt = borderPoints[key] || borderPoints[revKey] || regionCenters[unshaded[0]];
+                            xPositions.push(pt);
+                        } else {
+                            // Contradictory/fallback: place in first candidate anyway
+                            xPositions.push(regionCenters[rel.x[0]]);
+                        }
+                    }
+                }
+            });
+
+            // Generate Shading SVG elements
+            for (let r = 1; r <= 7; r++) {
+                if (shadedRegions[r]) {
+                    let mask1, mask2, mask3;
+                    switch (r) {
+                        case 1: mask1 = "mask-S"; mask2 = "mask-not-P"; mask3 = "mask-not-M"; break;
+                        case 2: mask1 = "mask-not-S"; mask2 = "mask-P"; mask3 = "mask-not-M"; break;
+                        case 3: mask1 = "mask-not-S"; mask2 = "mask-not-P"; mask3 = "mask-M"; break;
+                        case 4: mask1 = "mask-S"; mask2 = "mask-not-P"; mask3 = "mask-M"; break;
+                        case 5: mask1 = "mask-not-S"; mask2 = "mask-P"; mask3 = "mask-M"; break;
+                        case 6: mask1 = "mask-S"; mask2 = "mask-P"; mask3 = "mask-not-M"; break;
+                        case 7: mask1 = "mask-S"; mask2 = "mask-P"; mask3 = "mask-M"; break;
+                    }
+                    shadingSvg += `
+                    <g mask="url(#${mask1})">
+                        <g mask="url(#${mask2})">
+                            <g mask="url(#${mask3})">
+                                <rect x="0" y="0" width="280" height="220" fill="rgba(15, 23, 42, 0.65)" />
+                                <rect x="0" y="0" width="280" height="220" fill="url(#diagonalHatch)" />
+                            </g>
+                        </g>
+                    </g>
+                    `;
+                }
+            }
+
+            // Generate X SVG elements
+            xPositions.forEach(pt => {
+                xSvg += `
+                <g class="venn-x" stroke="#dfa837" stroke-width="2.5" stroke-linecap="round" opacity="0.95">
+                    <line x1="${pt.x - 6}" y1="${pt.y - 6}" x2="${pt.x + 6}" y2="${pt.y + 6}" />
+                    <line x1="${pt.x + 6}" y1="${pt.y - 6}" x2="${pt.x - 6}" y2="${pt.y + 6}" />
+                    <circle cx="${pt.x}" cy="${pt.y}" r="6" fill="rgba(223, 168, 55, 0.3)" filter="blur(1px)" />
+                </g>
+                `;
+            });
+        }
+
         // SVG string rendering three overlapping circles beautifully
         return `
         <svg viewBox="0 0 280 220" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" ${filterShadow}>
@@ -293,16 +456,53 @@ However, others claim that all cats are animals and all dogs are animals, which 
                     <stop offset="0%" stop-color="#dfa837" stop-opacity="0.2"/>
                     <stop offset="100%" stop-color="#b47e1b" stop-opacity="0.05"/>
                 </linearGradient>
+                <pattern id="diagonalHatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                    <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1.5" />
+                </pattern>
+                
+                <!-- Masks for each circle -->
+                <mask id="mask-S">
+                    <rect width="280" height="220" fill="black" />
+                    <circle cx="95" cy="135" r="48" fill="white" />
+                </mask>
+                <mask id="mask-not-S">
+                    <rect width="280" height="220" fill="white" />
+                    <circle cx="95" cy="135" r="48" fill="black" />
+                </mask>
+                
+                <mask id="mask-P">
+                    <rect width="280" height="220" fill="black" />
+                    <circle cx="185" cy="135" r="48" fill="white" />
+                </mask>
+                <mask id="mask-not-P">
+                    <rect width="280" height="220" fill="white" />
+                    <circle cx="185" cy="135" r="48" fill="black" />
+                </mask>
+                
+                <mask id="mask-M">
+                    <rect width="280" height="220" fill="black" />
+                    <circle cx="140" cy="85" r="48" fill="white" />
+                </mask>
+                <mask id="mask-not-M">
+                    <rect width="280" height="220" fill="white" />
+                    <circle cx="140" cy="85" r="48" fill="black" />
+                </mask>
             </defs>
 
+            <!-- Base shaded regions -->
+            ${shadingSvg}
+
             <!-- Subject Circle (Left) S -->
-            <circle cx="95" cy="135" r="48" fill="rgba(59, 130, 246, 0.08)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 2" />
+            <circle cx="95" cy="135" r="48" fill="rgba(59, 130, 246, 0.04)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 2" />
             
             <!-- Predicate Circle (Right) P -->
-            <circle cx="185" cy="135" r="48" fill="rgba(236, 72, 153, 0.08)" stroke="#ec4899" stroke-width="2" stroke-dasharray="4 2" />
+            <circle cx="185" cy="135" r="48" fill="rgba(236, 72, 153, 0.04)" stroke="#ec4899" stroke-width="2" stroke-dasharray="4 2" />
             
             <!-- Middle Circle (Top) M -->
             <circle cx="140" cy="85" r="48" fill="url(#goldGlow)" stroke="#dfa837" stroke-width="2" />
+            
+            <!-- Dynamic X Existential Badges -->
+            ${xSvg}
             
             <!-- Floating Text Labels -->
             <!-- M label -->

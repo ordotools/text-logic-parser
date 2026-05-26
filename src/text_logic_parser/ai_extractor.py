@@ -1,14 +1,15 @@
-import os
 import json
 import requests
 from typing import List, Dict, Any
+from text_logic_parser.config import settings
+from text_logic_parser.exceptions import GeminiConfigurationError, GeminiAPIError
 
 class AIExtractor:
     """Uses Gemini API to extract logical arguments from student essays and structure them."""
     
-    def __init__(self):
-        self.api_key = os.environ.get("GEMINI_API_KEY")
-        self.model_name = "gemini-2.5-flash"
+    def __init__(self, api_key: str | None = None, model_name: str | None = None):
+        self.api_key = api_key or settings.gemini_api_key
+        self.model_name = model_name or settings.gemini_model
         
     def extract_arguments(self, essay_text: str) -> List[Dict[str, Any]]:
         """
@@ -16,7 +17,7 @@ class AIExtractor:
         and reconstruct them in a structured, standard categorical format with unified terms.
         """
         if not self.api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is not set.")
+            raise GeminiConfigurationError("GEMINI_API_KEY environment variable is not set.")
             
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
         
@@ -101,7 +102,17 @@ CRITICAL:
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             if response.status_code != 200:
-                raise RuntimeError(f"Gemini API returned error {response.status_code}: {response.text}")
+                error_msg = response.text
+                try:
+                    err_json = response.json()
+                    if "error" in err_json and "message" in err_json["error"]:
+                        error_msg = err_json["error"]["message"]
+                except Exception:
+                    pass
+                raise GeminiAPIError(
+                    status_code=response.status_code,
+                    message=f"Gemini API returned error: {error_msg}"
+                )
                 
             data = response.json()
             response_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -118,7 +129,15 @@ CRITICAL:
                     
             return arguments
             
+        except requests.exceptions.ConnectionError as e:
+            raise GeminiAPIError(status_code=503, message=f"Failed to connect to Gemini API: {str(e)}")
+        except requests.exceptions.Timeout as e:
+            raise GeminiAPIError(status_code=504, message="Gemini API request timed out.")
+        except requests.exceptions.RequestException as e:
+            status_code = getattr(e.response, "status_code", 502) if e.response is not None else 502
+            raise GeminiAPIError(status_code=status_code, message=f"Gemini API request failed: {str(e)}")
+        except (GeminiConfigurationError, GeminiAPIError):
+            raise
         except Exception as e:
-            # Return an empty list or bubble up the exception
             print(f"Error in extract_arguments: {e}")
-            raise e
+            raise GeminiAPIError(status_code=500, message=f"Unexpected error in Gemini client: {str(e)}")

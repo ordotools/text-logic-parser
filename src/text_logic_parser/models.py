@@ -1,53 +1,79 @@
 import re
+import spacy
 from typing import List, Optional
+
+# Load spaCy NLP engine for lemmatization
+try:
+    nlp_engine = spacy.load("en_core_web_sm")
+except OSError:
+    nlp_engine = None
 
 def normalize_term(term: str) -> str:
     """
     Utility to normalize terms for matching.
     Lowercases, strips whitespace, removes leading articles,
-    and handles simple singular/plural normalization.
+    and handles advanced lemmatization with spaCy (with rule-based fallback).
     """
     if not term:
         return ""
     
     term_stripped = term.strip()
-    # Detect if it's likely a proper noun (starts with capital letter)
-    is_proper = term_stripped[0].isupper() if term_stripped else False
     
-    term = term_stripped.lower()
+    # Check if the last word of the term starts with a capital letter to identify proper nouns
+    words = term_stripped.split()
+    is_proper = False
+    if words:
+        last_word = words[-1]
+        last_word_clean = last_word.strip(".,;:!?")
+        if last_word_clean and last_word_clean[0].isupper():
+            is_proper = True
+            
+    term_lower = term_stripped.lower()
     
     # Remove leading articles
     for article in ["a ", "an ", "the "]:
-        if term.startswith(article):
-            term = term[len(article):]
+        if term_lower.startswith(article):
+            term_stripped = term_stripped[len(article):].strip()
+            term_lower = term_stripped.lower()
             break
-    
-    # If it's likely a proper noun, skip common plural stripping to protect names like Socrates or Athens
-    if is_proper:
-        return term
 
-    # Strip trailing 's' or 'es' for simple plural matching (e.g. "men" is handled, but "cats" -> "cat")
-    # We will also support custom irregular mappings
+    if is_proper:
+        return term_lower
+
+    if nlp_engine is not None:
+        doc = nlp_engine(term_stripped)
+        normalized_tokens = []
+        protected_nouns = {"socrates", "athens"}
+        for t in doc:
+            lemma = t.lemma_.lower()
+            if t.text.lower() in protected_nouns:
+                lemma = t.text.lower()
+            normalized_tokens.append(lemma + t.whitespace_)
+        return "".join(normalized_tokens).strip()
+        
+    # --- FALLBACK RULE-BASED LOGIC ---
+    # Strip trailing 's' or 'es' for simple plural matching
     irregular = {
         "men": "man",
         "women": "woman",
         "children": "child",
         "people": "person"
     }
-    if term in irregular:
-        return irregular[term]
+    if term_lower in irregular:
+        return irregular[term_lower]
         
-    if term.endswith("es") and len(term) > 4:
-        stem = term[:-2]
+    if term_lower.endswith("es") and len(term_lower) > 4:
+        stem = term_lower[:-2]
         if stem.endswith(("s", "x", "z", "ch", "sh")):
             return stem
         else:
-            return term[:-1] # E.g., "reptiles" -> "reptile"
+            return term_lower[:-1] # E.g., "reptiles" -> "reptile"
             
-    if term.endswith("s") and not term.endswith("ss") and len(term) > 3:
-        return term[:-1]
+    if term_lower.endswith("s") and not term_lower.endswith("ss") and len(term_lower) > 3:
+        return term_lower[:-1]
         
-    return term
+    return term_lower
+
 
 
 class Proposition:

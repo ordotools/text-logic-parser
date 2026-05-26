@@ -2,6 +2,7 @@ from text_logic_parser.models import Proposition, Syllogism, normalize_term
 
 def test_normalize_term():
     assert normalize_term("Socrates") == "socrates"
+    assert normalize_term("socrates") == "socrates"
     assert normalize_term("a man") == "man"
     assert normalize_term("the mortal") == "mortal"
     assert normalize_term("cats") == "cat"
@@ -9,6 +10,9 @@ def test_normalize_term():
     assert normalize_term("men") == "man"
     assert normalize_term("women") == "woman"
     assert normalize_term("  An apple  ") == "apple"
+    assert normalize_term("Warm-blooded reptiles") == "warm-blooded reptile"
+    assert normalize_term("warm-blooded reptile") == "warm-blooded reptile"
+
 
 def test_proposition_properties():
     # A: Universal Affirmative

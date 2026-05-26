@@ -799,6 +799,44 @@ textarea:focus {
     color: var(--text-primary);
 }
 
+/* Shading & X legend helper */
+.diagram-help-legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    border-top: 1px dashed rgba(223, 168, 55, 0.15);
+    padding-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.help-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.help-item i {
+    font-size: 0.9rem;
+}
+
+/* Venn X Glowing & Interactive styles */
+.venn-x {
+    animation: pulse-glow 2s infinite ease-in-out;
+    transform-origin: center;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        opacity: 0.8;
+        filter: drop-shadow(0 0 1px rgba(223, 168, 55, 0.2));
+    }
+    50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 6px rgba(223, 168, 55, 0.7));
+    }
+}
+
 /* ==========================================================================
    Fallacies Violation presentation
    ========================================================================== */
