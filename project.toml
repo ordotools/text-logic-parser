@@ -1,2 +1,10 @@
 [build]
 builder = "gcr.io/buildpacks/builder:google-22"
+
+[[build.env]]
+name = "GOOGLE_RUNTIME_VERSION"
+value = "3.12.11"
+
+[[build.env]]
+name = "GOOGLE_RUNTIME_IMAGE_REGION"
+value = "us"
