@@ -38,6 +38,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         essayInput.value = "";
         resultsSection.classList.add("hidden");
         document.getElementById("spacy-concepts-card").classList.add("hidden");
+        document.querySelector(".app-container").classList.remove("layout-quadrants");
     });
 
     analyzeBtn.addEventListener("click", async () => {
@@ -50,6 +51,8 @@ However, others claim that all cats are animals and all dogs are animals, which 
         // Show loading state
         setLoading(true);
         resultsSection.classList.add("hidden");
+        document.getElementById("spacy-concepts-card").classList.add("hidden");
+        document.querySelector(".app-container").classList.remove("layout-quadrants");
 
         try {
             const response = await fetch("/api/analyze", {
@@ -300,7 +303,15 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
         // Display results block
         resultsSection.classList.remove("hidden");
-        resultsSection.scrollIntoView({ behavior: "smooth" });
+
+        // Activate quadrant layout
+        const appContainer = document.querySelector(".app-container");
+        appContainer.classList.add("layout-quadrants");
+
+        // Only scroll to results on mobile/tablets where it flows vertically
+        if (!window.matchMedia("(min-width: 1024px)").matches) {
+            resultsSection.scrollIntoView({ behavior: "smooth" });
+        }
     }
 
     function fillPropRow(rowElement, propData) {
