@@ -12,6 +12,7 @@ from typing import List, Dict, Any
 # Ensure src/ is in the python search path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
+# pyrefly: ignore [missing-import]
 from text_logic_parser import (
     Proposition, 
     Syllogism, 
