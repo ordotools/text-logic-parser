@@ -168,13 +168,14 @@ def validate_syllogism(syll: Syllogism) -> List[Dict[str, Any]]:
     # Universal premises: A or E
     # Particular conclusion: I or O, or Singular
     # Let's check if both premises are universal, and the conclusion is not universal
-    if major_p.is_universal and minor_p.is_universal and (conclusion.is_particular or conclusion.is_singular):
-        violations.append(FallacyViolation(
-            code="existential_fallacy",
-            title="Existential Fallacy (Modern Logic)",
-            description="Drawing a particular conclusion from universal premises. Universal statements in modern logic do not assume the existence of their subjects, whereas particular statements do.",
-            details=f"Both premises are universal ('{major_p}' and '{minor_p}'), but the conclusion ('{conclusion}') is particular/singular, assuming the existence of '{syll.minor_term}'.",
-            is_warning=True
-        ).to_dict())
+    # (Commented out for now as per user request to treat these as valid)
+    # if major_p.is_universal and minor_p.is_universal and (conclusion.is_particular or conclusion.is_singular):
+    #     violations.append(FallacyViolation(
+    #         code="existential_fallacy",
+    #         title="Existential Fallacy (Modern Logic)",
+    #         description="Drawing a particular conclusion from universal premises. Universal statements in modern logic do not assume the existence of their subjects, whereas particular statements do.",
+    #         details=f"Both premises are universal ('{major_p}' and '{minor_p}'), but the conclusion ('{conclusion}') is particular/singular, assuming the existence of '{syll.minor_term}'.",
+    #         is_warning=True
+    #     ).to_dict())
 
     return violations

@@ -105,10 +105,9 @@ def test_existential_fallacy():
     syll = Syllogism([p1, p2], conc)
     violations = validate_syllogism(syll)
     
-    # Existential fallacy is flagged as a warning
-    assert len(violations) == 1
-    assert violations[0]["code"] == "existential_fallacy"
-    assert violations[0]["is_warning"] is True
+    # Under classical Aristotelian rules, this is valid (existential import is assumed).
+    # Modern logic warning is currently commented out.
+    assert len(violations) == 0
 
 def test_four_terms_fallacy():
     # All cats are furry. Socrates is a man. Therefore Socrates is furry.

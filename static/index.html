@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,11 +8,14 @@
     <!-- Google Fonts: Playfair Display for Classical style, Outfit for premium modern text -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <div class="background-decorations">
         <div class="glow-orb orb-1"></div>
@@ -38,24 +42,30 @@
         <section class="card input-card animate-fade-in">
             <div class="card-header">
                 <h2><i class="fa-solid fa-pen-nib"></i> Analyze Student Essay</h2>
-                <p>Paste a student essay below. The analyzer will extract its underlying logical arguments using AI and strictly evaluate their validity using deterministic rules of classical logic.</p>
+                <p>Paste a student essay below. The analyzer will extract its underlying logical arguments using AI and
+                    strictly evaluate their validity using deterministic rules of classical logic.</p>
             </div>
-            
+
             <div class="essay-textarea-wrapper">
-                <textarea id="essay-input" placeholder="Paste student essay here...
+                <textarea id="essay-input"
+                    placeholder="Paste student essay here...
 
 Example of logical essay snippet:
 Socrates is mortal because he is a man. Furthermore, all men are mortal. However, since all gods are immortal and no men are gods, some think we are divine. But actually, no men are immortal. Therefore, Socrates is not immortal."></textarea>
                 <div class="sample-actions">
-                    <button type="button" id="load-sample-btn" class="btn-secondary"><i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Essay</button>
-                    <button type="button" id="clear-btn" class="btn-tertiary"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                    <button type="button" id="load-sample-btn" class="btn-secondary"><i
+                            class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Essay</button>
+                    <button type="button" id="clear-btn" class="btn-tertiary"><i class="fa-solid fa-trash-can"></i>
+                        Clear</button>
                 </div>
             </div>
 
             <div class="action-bar">
                 <button type="button" id="analyze-btn" class="btn-primary">
-                    <span class="btn-text"><i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Logical Structure</span>
-                    <span class="btn-loading-spinner hidden"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing with Gemini AI...</span>
+                    <span class="btn-text"><i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Logical
+                        Structure</span>
+                    <span class="btn-loading-spinner hidden"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing with
+                        Gemini AI...</span>
                 </button>
             </div>
         </section>
@@ -73,7 +83,8 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
         <div class="spacy-concepts-card card hidden animate-slide-up" id="spacy-concepts-card">
             <div class="concepts-header">
                 <h3><i class="fa-solid fa-brain"></i> SpaCy Semantic &amp; Parsing Analysis</h3>
-                <p>Concepts, entities, and raw logical premises extracted locally by the spaCy NLP engine before AI formalization.</p>
+                <p>Concepts, entities, and raw logical premises extracted locally by the spaCy NLP engine before AI
+                    formalization.</p>
             </div>
             <div class="concepts-dashboard-grid">
                 <!-- Left Side: Concepts & Terms Tags -->
@@ -97,11 +108,12 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Right Side: Intermediate Raw Arguments parsed from text -->
                 <div class="concepts-args-section">
                     <div class="concept-group raw-args-group">
-                        <span class="group-title"><i class="fa-solid fa-code-pull-request text-gold"></i> Raw Parsed Arguments (Local Progress)</span>
+                        <span class="group-title"><i class="fa-solid fa-code-pull-request text-gold"></i> Raw Parsed
+                            Arguments (Local Progress)</span>
                         <div class="raw-arguments-list" id="raw-spacy-arguments">
                             <!-- Raw arguments will be rendered here -->
                         </div>
@@ -136,7 +148,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                         <i class="fa-solid fa-circle-info stat-icon warning"></i>
                         <div class="stat-info">
                             <span class="stat-value" id="stat-warnings">0</span>
-                            <span class="stat-label">Modern Caveats</span>
+                            <span class="stat-label">Caveats</span>
                         </div>
                     </div>
                 </div>
@@ -189,7 +201,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                 <!-- Reconstructed Formal Syllogism -->
                 <div class="syllogism-structure">
                     <h4><i class="fa-solid fa-sitemap"></i> Reconstructed Syllogism</h4>
-                    
+
                     <div class="propositions-list">
                         <!-- Premise 1 -->
                         <div class="prop-row premise-1">
@@ -260,12 +272,20 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                         <div class="svg-diagram-wrapper"></div>
                     </div>
                     <div class="terms-legend">
-                        <div class="term-legend-row"><span class="term-circle s-circle"></span> <span class="term-text"><strong>Minor Term (S):</strong> <span class="term-minor-val">Socrates</span></span></div>
-                        <div class="term-legend-row"><span class="term-circle p-circle"></span> <span class="term-text"><strong>Major Term (P):</strong> <span class="term-major-val">mortal</span></span></div>
-                        <div class="term-legend-row"><span class="term-circle m-circle"></span> <span class="term-text"><strong>Middle Term (M):</strong> <span class="term-middle-val">man</span></span></div>
+                        <div class="term-legend-row"><span class="term-circle s-circle"></span> <span
+                                class="term-text"><strong>Minor Term (S):</strong> <span
+                                    class="term-minor-val">Socrates</span></span></div>
+                        <div class="term-legend-row"><span class="term-circle p-circle"></span> <span
+                                class="term-text"><strong>Major Term (P):</strong> <span
+                                    class="term-major-val">mortal</span></span></div>
+                        <div class="term-legend-row"><span class="term-circle m-circle"></span> <span
+                                class="term-text"><strong>Middle Term (M):</strong> <span
+                                    class="term-middle-val">man</span></span></div>
                         <div class="diagram-help-legend">
-                            <span class="help-item"><i class="fa-solid fa-fill" style="color: var(--text-muted)"></i> Shaded areas are empty (ruled out)</span>
-                            <span class="help-item"><i class="fa-solid fa-xmark" style="color: var(--color-gold)"></i> 'X' marks existence</span>
+                            <span class="help-item"><i class="fa-solid fa-fill" style="color: var(--text-muted)"></i>
+                                Shaded areas are empty (ruled out)</span>
+                            <span class="help-item"><i class="fa-solid fa-xmark" style="color: var(--color-gold)"></i>
+                                'X' marks existence</span>
                         </div>
                     </div>
                 </div>
@@ -283,4 +303,5 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
 
     <script src="app.js"></script>
 </body>
+
 </html>
