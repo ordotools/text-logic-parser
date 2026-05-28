@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const analyzeBtn = document.getElementById("analyze-btn");
     const loadSampleBtn = document.getElementById("load-sample-btn");
     const clearBtn = document.getElementById("clear-btn");
-    const loadingState = document.getElementById("loading-state");
     const resultsSection = document.getElementById("results-section");
     const argumentsList = document.getElementById("arguments-list");
     const resultsCountBadge = document.getElementById("results-count-badge");
@@ -38,7 +37,10 @@ However, others claim that all cats are animals and all dogs are animals, which 
         essayInput.value = "";
         resultsSection.classList.add("hidden");
         document.getElementById("spacy-concepts-card").classList.add("hidden");
-        document.querySelector(".app-container").classList.remove("layout-quadrants");
+        document.querySelector(".app-container").classList.remove("layout-three-columns");
+        
+        // Reset integrated progress header state
+        setLoading(false);
     });
 
     analyzeBtn.addEventListener("click", async () => {
@@ -48,24 +50,8 @@ However, others claim that all cats are animals and all dogs are animals, which 
             return;
         }
 
-        // Show loading state
+        // Show loading state and active layout
         setLoading(true);
-        resultsSection.classList.add("hidden");
-        document.getElementById("spacy-concepts-card").classList.add("hidden");
-        document.querySelector(".app-container").classList.remove("layout-quadrants");
-        
-        // Reset loader UI elements
-        const progressFill = document.getElementById("loader-progress-fill");
-        const progressText = document.getElementById("loader-progress-text");
-        const retryBadge = document.getElementById("loader-retry-badge");
-        const loaderTitle = document.getElementById("loader-title");
-        const loaderSubtitle = document.getElementById("loader-subtitle");
-        
-        progressFill.style.width = "0%";
-        progressText.textContent = "Connecting to logic parser...";
-        retryBadge.classList.add("hidden");
-        loaderTitle.textContent = "Reading Essay & Unifying Terms...";
-        loaderSubtitle.textContent = "Gemini AI is identifying premises and structuring them into formal categorical propositions.";
 
         // Clear dashboard stats
         statValid.textContent = "0";
@@ -169,6 +155,11 @@ However, others claim that all cats are animals and all dogs are animals, which 
         }
 
         function handleStreamEvent(event, data) {
+            const progressFill = document.getElementById("header-progress-fill");
+            const progressText = document.getElementById("header-progress-text");
+            const retryBadge = document.getElementById("header-retry-badge");
+            const titleText = document.getElementById("results-title-text");
+
             if (event === "metadata") {
                 totalChunksCount = data.total_chunks || 1;
                 globalConcepts = data.concepts || {};
@@ -176,8 +167,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 
                 renderConceptsAndRawSpacyArgs(globalConcepts, globalRawArguments);
                 
-                loaderTitle.textContent = "Extracting Logical Arguments...";
-                loaderSubtitle.textContent = `Text segmented into ${totalChunksCount} chunk${totalChunksCount > 1 ? 's' : ''}. Parsing chunks concurrently...`;
+                titleText.textContent = "Extracting Logical Arguments...";
                 progressText.textContent = `Processing chunk 0 of ${totalChunksCount}...`;
                 progressFill.style.width = "5%";
                 
@@ -196,13 +186,6 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 const pct = Math.min(95, Math.round((processedChunksCount / totalChunksCount) * 100));
                 progressFill.style.width = `${pct}%`;
                 progressText.textContent = `Processed chunk ${processedChunksCount} of ${totalChunksCount}...`;
-
-                if (argumentsListChunk.length > 0) {
-                    if (resultsSection.classList.contains("hidden")) {
-                        resultsSection.classList.remove("hidden");
-                        document.querySelector(".app-container").classList.add("layout-quadrants");
-                    }
-                }
 
                 argumentsListChunk.forEach((arg) => {
                     argumentsArray.push(arg);
@@ -298,14 +281,14 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 });
             }
             else if (event === "completed") {
+                const progressFill = document.getElementById("header-progress-fill");
+                const progressText = document.getElementById("header-progress-text");
+
                 progressFill.style.width = "100%";
                 progressText.textContent = "Analysis completed!";
                 
                 setTimeout(() => {
                     setLoading(false);
-                    
-                    resultsSection.classList.remove("hidden");
-                    document.querySelector(".app-container").classList.add("layout-quadrants");
                     
                     if (argumentsArray.length === 0) {
                         alert("No logical arguments could be identified in the text. Ensure your text contains logical claims, assertions, or assumptions.");
@@ -320,16 +303,47 @@ However, others claim that all cats are animals and all dogs are animals, which 
     });
 
     function setLoading(isLoading) {
+        const progressFill = document.getElementById("header-progress-fill");
+        const progressContainer = document.getElementById("header-progress-container");
+        const progressStatus = document.getElementById("header-progress-status");
+        const progressText = document.getElementById("header-progress-text");
+        const retryBadge = document.getElementById("header-retry-badge");
+        const titleText = document.getElementById("results-title-text");
+        const titleIcon = document.getElementById("results-title-icon");
+
         if (isLoading) {
             analyzeBtn.disabled = true;
             analyzeBtn.querySelector(".btn-text").classList.add("hidden");
             analyzeBtn.querySelector(".btn-loading-spinner").classList.remove("hidden");
-            loadingState.classList.remove("hidden");
+            
+            // Show columns immediately when submitted
+            resultsSection.classList.remove("hidden");
+            document.getElementById("spacy-concepts-card").classList.remove("hidden");
+            document.querySelector(".app-container").classList.add("layout-three-columns");
+            
+            // Activate progress bar and status in dashboard header
+            progressContainer.classList.add("active");
+            progressStatus.classList.remove("hidden");
+            
+            // Set initial loading states
+            progressFill.style.width = "0%";
+            progressText.textContent = "Connecting to logic parser...";
+            retryBadge.classList.add("hidden");
+            
+            titleText.textContent = "Reading Essay & Unifying Terms...";
+            titleIcon.className = "fa-solid fa-spinner fa-spin text-gold";
         } else {
             analyzeBtn.disabled = false;
             analyzeBtn.querySelector(".btn-text").classList.remove("hidden");
             analyzeBtn.querySelector(".btn-loading-spinner").classList.add("hidden");
-            loadingState.classList.add("hidden");
+            
+            // Deactivate progress bar and status in dashboard header
+            progressContainer.classList.remove("active");
+            progressStatus.classList.add("hidden");
+            
+            // Restore default title and icon
+            titleText.textContent = "Analysis Dashboard";
+            titleIcon.className = "fa-solid fa-chart-column";
         }
     }
 

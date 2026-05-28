@@ -1327,127 +1327,228 @@ textarea:focus {
 }
 
 /* ==========================================================================
-   Lyceum Dynamic Quadrants Layout (After submission on Desktop)
+   Lyceum Integrated Progress Header Components
+   ========================================================================== */
+
+.header-progress-container {
+    width: 100%;
+    height: 1px;
+    background: var(--border-color);
+    position: relative;
+    overflow: hidden;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    transition: var(--transition-smooth);
+}
+
+.header-progress-container.active {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.header-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-gold) 0%, #f59e0b 50%, #fcd34d 100%);
+    width: 0%;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px rgba(223, 168, 55, 0.6);
+}
+
+.header-progress-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: -0.25rem;
+    margin-bottom: 1rem;
+    transition: var(--transition-smooth);
+}
+
+.header-progress-status.hidden {
+    display: none !important;
+}
+
+
+/* ==========================================================================
+   Lyceum Modern 3-Column Dashboard Layout (After submission on Desktop)
    ========================================================================== */
 
 @media (min-width: 1024px) {
-    /* Main container quadrant grid */
-    .app-container.layout-quadrants {
+    /* Main container dashboard grid */
+    .app-container.layout-three-columns {
         display: grid;
-        grid-template-columns: 460px 1fr;
-        grid-template-rows: 1fr 1fr;
+        grid-template-columns: 1fr 1.5fr 1fr; /* Wider middle column, equal wider left/right columns */
+        grid-template-rows: 1fr;
         gap: 1.5rem;
-        height: calc(100vh - 145px); /* Restrict viewport height so there's no page overflow */
-        max-width: 1600px;
-        margin: 1.25rem auto;
-        padding: 0 2rem;
+        height: calc(100vh - 120px); /* Taller layout utilization to decrease vertical space above/below */
+        max-width: 2436px; /* Expanded by another 21em to widen each of the 3 columns by 7em */
+        margin: 0.5rem auto; /* Minimizes massive vertical space above the dashboard */
+        padding: 0 1.5rem;
         align-items: stretch;
+        width: 98vw; /* Spans full screen width elegantly */
     }
 
-    /* Keep header sticky but eliminate huge page-level scrolls */
-    body:has(.app-container.layout-quadrants) {
-        overflow: hidden; /* Lock viewport scrollbar */
+    /* Lock viewport scrollbar when dashboard layout is active */
+    body:has(.app-container.layout-three-columns) {
+        overflow: hidden;
         height: 100vh;
     }
 
-    /* 1. Upper Left Quadrant: Essay Input Card */
-    .app-container.layout-quadrants #input-card {
+    /* Column 1: Essay Input Card */
+    .app-container.layout-three-columns #input-card {
         grid-column: 1;
-        grid-row: 1;
+        grid-row: 1; /* Explicit row 1 lock prevents layout column collapse */
         display: flex;
         flex-direction: column;
         padding: 1.5rem;
         height: 100%;
-        overflow: hidden; /* Lock overall card height */
-        background: rgba(15, 22, 38, 0.85); /* Slightly deeper shade */
+        overflow: hidden; /* Lock height and prevent content overflow */
+        background: rgba(15, 22, 38, 0.85); /* Premium deeper glass overlay */
     }
 
-    .app-container.layout-quadrants #input-card .card-header {
+    .app-container.layout-three-columns #input-card .card-header {
         margin-bottom: 0.75rem;
     }
 
-    .app-container.layout-quadrants #input-card .card-header h2 {
+    .app-container.layout-three-columns #input-card .card-header h2 {
         font-size: 1.4rem;
         margin-bottom: 0.25rem;
     }
 
-    .app-container.layout-quadrants #input-card .card-header p {
+    .app-container.layout-three-columns #input-card .card-header p {
         font-size: 0.85rem;
         margin-bottom: 0.5rem;
         line-height: 1.4;
     }
 
-    .app-container.layout-quadrants #input-card .essay-textarea-wrapper {
+    .app-container.layout-three-columns #input-card .essay-textarea-wrapper {
         flex: 1;
         display: flex;
         flex-direction: column;
-        min-height: 0; /* Let flex shrink appropriately */
+        min-height: 0; /* Enable flex child shrinking */
         gap: 0.5rem;
     }
 
-    .app-container.layout-quadrants #input-card textarea {
+    .app-container.layout-three-columns #input-card textarea {
         flex: 1;
         min-height: 80px;
         padding: 1rem;
         font-size: 0.95rem;
         line-height: 1.6;
         background: rgba(8, 10, 18, 0.7);
+        resize: none; /* Block manual resizing since it occupies column height */
     }
 
-    .app-container.layout-quadrants #input-card .sample-actions {
+    .app-container.layout-three-columns #input-card .sample-actions {
         gap: 0.75rem;
     }
     
-    .app-container.layout-quadrants #input-card .btn-secondary,
-    .app-container.layout-quadrants #input-card .btn-tertiary {
+    .app-container.layout-three-columns #input-card .btn-secondary,
+    .app-container.layout-three-columns #input-card .btn-tertiary {
         padding: 0.4rem 0.85rem;
         font-size: 0.85rem;
     }
 
-    .app-container.layout-quadrants #input-card .action-bar {
+    .app-container.layout-three-columns #input-card .action-bar {
         margin-top: 0.75rem;
     }
 
-    .app-container.layout-quadrants #input-card .btn-primary {
+    .app-container.layout-three-columns #input-card .btn-primary {
         padding: 0.75rem 1.5rem;
         font-size: 0.95rem;
         width: 100%;
-        max-width: 100%; /* Fill space */
+        max-width: 100%;
     }
 
-    /* 2. Bottom Left Quadrant: spaCy Parsing Card */
-    .app-container.layout-quadrants #spacy-concepts-card {
-        grid-column: 1;
-        grid-row: 2;
+    /* Column 2: Analysis Dashboard (Results and Cards List) */
+    .app-container.layout-three-columns #results-section {
+        grid-column: 2;
+        grid-row: 1; /* Explicit row 1 lock prevents layout column collapse */
+        height: 100%;
+        overflow: hidden; /* Lock middle card itself from scrolling */
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        background: var(--bg-card);
+        backdrop-filter: var(--glass-blur);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .app-container.layout-three-columns #results-section .results-overview {
+        flex-shrink: 0; /* Keeps header, progress bar, and stats pinned at the top */
+        margin-bottom: 0;
+    }
+
+    /* Scrollable arguments list only */
+    .app-container.layout-three-columns #arguments-list {
+        flex: 1;
+        overflow-y: auto; /* Independent inner scrolling for syllogisms list only */
+        padding-right: 0.5rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(223, 168, 55, 0.25) transparent;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    /* Custom scrollbar for middle column arguments list */
+    @supports not (scrollbar-color: auto) {
+        .app-container.layout-three-columns #arguments-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .app-container.layout-three-columns #arguments-list::-webkit-scrollbar-track {
+            background: rgba(10, 13, 22, 0.3);
+            border-radius: 9999px;
+        }
+        .app-container.layout-three-columns #arguments-list::-webkit-scrollbar-thumb {
+            background: rgba(223, 168, 55, 0.2);
+            border-radius: 9999px;
+        }
+        .app-container.layout-three-columns #arguments-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(223, 168, 55, 0.4);
+        }
+    }
+
+    /* Column 3: SpaCy Semantic & Parsing Analysis Card */
+    .app-container.layout-three-columns #spacy-concepts-card {
+        grid-column: 3;
+        grid-row: 1; /* Explicit row 1 lock prevents layout column collapse */
         display: flex;
         flex-direction: column;
         padding: 1.5rem;
         height: 100%;
-        overflow: hidden; /* Avoid card spill */
+        overflow: hidden; /* Lock height and prevent container spill */
         background: rgba(15, 22, 38, 0.85);
+        margin-top: 0; /* Reset global margin-top to align perfectly with left/middle columns */
     }
 
-    .app-container.layout-quadrants #spacy-concepts-card .concepts-header {
+    .app-container.layout-three-columns #spacy-concepts-card .concepts-header {
         margin-bottom: 0.75rem;
     }
 
-    .app-container.layout-quadrants #spacy-concepts-card .concepts-header h3 {
+    .app-container.layout-three-columns #spacy-concepts-card .concepts-header h3 {
         font-size: 1.25rem;
     }
 
-    .app-container.layout-quadrants #spacy-concepts-card .concepts-header p {
+    .app-container.layout-three-columns #spacy-concepts-card .concepts-header p {
         font-size: 0.8rem;
         line-height: 1.4;
         margin-bottom: 0.25rem;
     }
 
-    /* SpaCy Inner Dashboard - Flex column instead of default grid, allowing scroll */
-    .app-container.layout-quadrants #spacy-concepts-card .concepts-dashboard-grid {
+    /* Scrollable concepts tags dashboard grid inside the card */
+    .app-container.layout-three-columns #spacy-concepts-card .concepts-dashboard-grid {
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
         flex: 1;
-        overflow-y: auto;
+        overflow-y: auto; /* Independent inner scroll */
         padding-right: 0.5rem;
         scrollbar-width: thin;
         scrollbar-color: rgba(223, 168, 55, 0.2) transparent;
@@ -1455,67 +1556,28 @@ textarea:focus {
         scrollbar-gutter: stable;
     }
 
-    /* Prevent raw arguments list within spaCy card from double-scrolling */
-    .app-container.layout-quadrants #spacy-concepts-card .raw-arguments-list {
+    /* Prevent raw arguments list from double scrollbar */
+    .app-container.layout-three-columns #spacy-concepts-card .raw-arguments-list {
         max-height: none;
         overflow-y: visible;
         padding-right: 0;
     }
 
-    /* Custom scrollbars support */
+    /* Custom scrollbar for spaCy card concepts container */
     @supports not (scrollbar-color: auto) {
-        .app-container.layout-quadrants #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar {
+        .app-container.layout-three-columns #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar {
             width: 6px;
         }
-        .app-container.layout-quadrants #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-track {
+        .app-container.layout-three-columns #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-track {
             background: transparent;
         }
-        .app-container.layout-quadrants #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-thumb {
+        .app-container.layout-three-columns #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-thumb {
             background: rgba(223, 168, 55, 0.15);
             border-radius: 4px;
         }
-        .app-container.layout-quadrants #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-thumb:hover {
+        .app-container.layout-three-columns #spacy-concepts-card .concepts-dashboard-grid::-webkit-scrollbar-thumb:hover {
             background: rgba(223, 168, 55, 0.35);
         }
-    }
-
-    /* 3. Right Two Quarters: Results Dashboard & Stacked Arguments */
-    .app-container.layout-quadrants #results-section {
-        grid-column: 2;
-        grid-row: 1 / span 2;
-        height: 100%;
-        overflow-y: auto;
-        padding: 0.25rem 1.5rem 1.5rem 0.25rem; /* Reserve scrollbar space */
-        display: flex;
-        flex-direction: column;
-        gap: 1.75rem;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(223, 168, 55, 0.25) transparent;
-        overscroll-behavior: contain;
-        scrollbar-gutter: stable;
-    }
-
-    /* Custom scrollbar for results right column */
-    @supports not (scrollbar-color: auto) {
-        .app-container.layout-quadrants #results-section::-webkit-scrollbar {
-            width: 8px;
-        }
-        .app-container.layout-quadrants #results-section::-webkit-scrollbar-track {
-            background: rgba(10, 13, 22, 0.3);
-            border-radius: 9999px;
-        }
-        .app-container.layout-quadrants #results-section::-webkit-scrollbar-thumb {
-            background: rgba(223, 168, 55, 0.2);
-            border-radius: 9999px;
-        }
-        .app-container.layout-quadrants #results-section::-webkit-scrollbar-thumb:hover {
-            background: rgba(223, 168, 55, 0.4);
-        }
-    }
-
-    /* Ensure results section has no outer bottom margin to maximize grid usage */
-    .app-container.layout-quadrants #results-section .results-overview {
-        margin-bottom: 0;
     }
 }
 

@@ -39,7 +39,7 @@
 
     <main class="app-container">
         <!-- Input section -->
-        <section class="card input-card animate-fade-in">
+        <section class="card input-card animate-fade-in" id="input-card">
             <div class="card-header">
                 <h2><i class="fa-solid fa-pen-nib"></i> Analyze Student Essay</h2>
                 <p>Paste a student essay below. The analyzer will extract its underlying logical arguments using AI and
@@ -70,7 +70,8 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
             </div>
         </section>
 
-        <!-- Loader state -->
+        <!-- Loader state (Disabled in favor of integrated header progress) -->
+        <!--
         <div id="loading-state" class="loader-container hidden">
             <div class="spin-ring">
                 <div class="spin-core"></div>
@@ -88,6 +89,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                 </div>
             </div>
         </div>
+        -->
 
         <!-- SpaCy Semantic & Parsing Analysis -->
         <div class="spacy-concepts-card card hidden animate-slide-up" id="spacy-concepts-card">
@@ -136,8 +138,18 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
         <section id="results-section" class="results-container hidden animate-fade-in">
             <div class="results-overview">
                 <div class="overview-header">
-                    <h2><i class="fa-solid fa-chart-column"></i> Analysis Dashboard</h2>
+                    <h2><i id="results-title-icon" class="fa-solid fa-chart-column"></i> <span
+                            id="results-title-text">Analysis Dashboard</span></h2>
                     <span id="results-count-badge" class="count-badge">0 Arguments Extracted</span>
+                </div>
+                <!-- Integrated progress bar under the header -->
+                <div id="header-progress-container" class="header-progress-container">
+                    <div id="header-progress-fill" class="header-progress-fill" style="width: 0%"></div>
+                </div>
+                <div id="header-progress-status" class="header-progress-status hidden">
+                    <span id="header-progress-text">Initializing concurrent workers...</span>
+                    <span id="header-retry-badge" class="retry-badge hidden"><i
+                            class="fa-solid fa-arrows-rotate fa-spin"></i> Retry Active</span>
                 </div>
                 <div class="overview-grid">
                     <div class="overview-stat card">
@@ -154,7 +166,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                             <span class="stat-label">Fallacies Detected</span>
                         </div>
                     </div>
-                    <div class="overview-stat card">
+                    <div class="overview-stat card" style="display: none;">
                         <i class="fa-solid fa-circle-info stat-icon warning"></i>
                         <div class="stat-info">
                             <span class="stat-value" id="stat-warnings">0</span>
