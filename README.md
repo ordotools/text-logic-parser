@@ -7,7 +7,7 @@ A natural language logic parser built in Python using **spaCy**. This library in
 ## Getting Started
 
 ### Prerequisites
-- Python 3.10 or higher (built with Python 3.13)
+- Python 3.10 or higher (built with Python 3.12)
 - An active internet connection (to download the English NLP model on first setup)
 
 ### Installation
