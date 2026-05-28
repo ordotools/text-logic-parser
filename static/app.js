@@ -65,7 +65,8 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || "Failed to analyze essay.");
+                const errorMsg = errorData.detail || errorData.message || errorData.error || "Failed to analyze essay.";
+                throw new Error(errorMsg);
             }
 
             const data = await response.json();
