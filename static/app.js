@@ -53,9 +53,40 @@ However, others claim that all cats are animals and all dogs are animals, which 
         resultsSection.classList.add("hidden");
         document.getElementById("spacy-concepts-card").classList.add("hidden");
         document.querySelector(".app-container").classList.remove("layout-quadrants");
+        
+        // Reset loader UI elements
+        const progressFill = document.getElementById("loader-progress-fill");
+        const progressText = document.getElementById("loader-progress-text");
+        const retryBadge = document.getElementById("loader-retry-badge");
+        const loaderTitle = document.getElementById("loader-title");
+        const loaderSubtitle = document.getElementById("loader-subtitle");
+        
+        progressFill.style.width = "0%";
+        progressText.textContent = "Connecting to logic parser...";
+        retryBadge.classList.add("hidden");
+        loaderTitle.textContent = "Reading Essay & Unifying Terms...";
+        loaderSubtitle.textContent = "Gemini AI is identifying premises and structuring them into formal categorical propositions.";
+
+        // Clear dashboard stats
+        statValid.textContent = "0";
+        statInvalid.textContent = "0";
+        statWarnings.textContent = "0";
+        resultsCountBadge.textContent = "0 Arguments Extracted";
+
+        const argumentsArray = [];
+        let globalConcepts = null;
+        let globalRawArguments = null;
+        let processedChunksCount = 0;
+        let totalChunksCount = 0;
+
+        let validCount = 0;
+        let invalidCount = 0;
+        let warningCount = 0;
+
+        argumentsList.innerHTML = "";
 
         try {
-            const response = await fetch("/api/analyze", {
+            const response = await fetch("/api/analyze/stream", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -64,18 +95,227 @@ However, others claim that all cats are animals and all dogs are animals, which 
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                const errorMsg = errorData.detail || errorData.message || errorData.error || "Failed to analyze essay.";
+                let errorMsg = "Failed to start streaming analysis.";
+                try {
+                    const errorData = await response.json();
+                    errorMsg = errorData.detail || errorData.message || errorData.error || errorMsg;
+                } catch(e) {}
                 throw new Error(errorMsg);
             }
 
-            const data = await response.json();
-            renderResults(data);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let buffer = "";
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split("\n");
+                
+                // Save the last incomplete line back to the buffer
+                buffer = lines.pop();
+
+                // Process complete SSE event packets
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    if (line.startsWith("event:")) {
+                        const eventType = line.replace("event:", "").trim();
+                        let nextLine = "";
+                        while (i + 1 < lines.length && !nextLine) {
+                            i++;
+                            const l = lines[i].trim();
+                            if (l.startsWith("data:")) {
+                                nextLine = l;
+                            }
+                        }
+
+                        if (nextLine && nextLine.startsWith("data:")) {
+                            const dataStr = nextLine.replace("data:", "").trim();
+                            try {
+                                const data = JSON.parse(dataStr);
+                                handleStreamEvent(eventType, data);
+                            } catch (e) {
+                                console.error("Failed to parse event JSON data:", e, dataStr);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Flush remaining buffer
+            if (buffer.trim()) {
+                const line = buffer.trim();
+                if (line.startsWith("event:")) {
+                    const eventType = line.replace("event:", "").trim();
+                    const dataLineIndex = buffer.indexOf("data:");
+                    if (dataLineIndex !== -1) {
+                        const dataStr = buffer.substring(dataLineIndex).replace("data:", "").trim();
+                        try {
+                            const data = JSON.parse(dataStr);
+                            handleStreamEvent(eventType, data);
+                        } catch (e) {}
+                    }
+                }
+            }
+
         } catch (error) {
             alert(`Error: ${error.message}`);
             console.error("Analysis failed:", error);
-        } finally {
             setLoading(false);
+        }
+
+        function handleStreamEvent(event, data) {
+            if (event === "metadata") {
+                totalChunksCount = data.total_chunks || 1;
+                globalConcepts = data.concepts || {};
+                globalRawArguments = data.raw_spacy_arguments || [];
+                
+                renderConceptsAndRawSpacyArgs(globalConcepts, globalRawArguments);
+                
+                loaderTitle.textContent = "Extracting Logical Arguments...";
+                loaderSubtitle.textContent = `Text segmented into ${totalChunksCount} chunk${totalChunksCount > 1 ? 's' : ''}. Parsing chunks concurrently...`;
+                progressText.textContent = `Processing chunk 0 of ${totalChunksCount}...`;
+                progressFill.style.width = "5%";
+                
+                document.getElementById("spacy-concepts-card").classList.remove("hidden");
+            } 
+            else if (event === "chunk_retry") {
+                retryBadge.classList.remove("hidden");
+                progressText.textContent = `Retrying chunk #${data.chunk_index + 1} (attempt ${data.attempt}/3)...`;
+            }
+            else if (event === "chunk_result") {
+                processedChunksCount = data.processed_chunks || processedChunksCount;
+                const argumentsListChunk = data.arguments || [];
+                
+                retryBadge.classList.add("hidden");
+                
+                const pct = Math.min(95, Math.round((processedChunksCount / totalChunksCount) * 100));
+                progressFill.style.width = `${pct}%`;
+                progressText.textContent = `Processed chunk ${processedChunksCount} of ${totalChunksCount}...`;
+
+                if (argumentsListChunk.length > 0) {
+                    if (resultsSection.classList.contains("hidden")) {
+                        resultsSection.classList.remove("hidden");
+                        document.querySelector(".app-container").classList.add("layout-quadrants");
+                    }
+                }
+
+                argumentsListChunk.forEach((arg) => {
+                    argumentsArray.push(arg);
+                    
+                    const cardIndex = argumentsArray.length - 1;
+                    
+                    let status = "invalid";
+                    if (arg.is_valid) {
+                        const hasWarnings = arg.violations && arg.violations.some(v => v.is_warning);
+                        if (hasWarnings) {
+                            status = "warning";
+                            warningCount++;
+                            animateValueUpdate(statWarnings, warningCount);
+                        } else {
+                            status = "valid";
+                            validCount++;
+                            animateValueUpdate(statValid, validCount);
+                        }
+                    } else {
+                        invalidCount++;
+                        animateValueUpdate(statInvalid, invalidCount);
+                    }
+
+                    resultsCountBadge.textContent = `${argumentsArray.length} Argument${argumentsArray.length > 1 ? 's' : ''} Extracted`;
+
+                    const cardInstance = cardTemplate.content.cloneNode(true);
+
+                    cardInstance.querySelector(".arg-index").textContent = `Argument #${cardIndex + 1}`;
+                    cardInstance.querySelector(".excerpt-text").textContent = `"${arg.original_text}"`;
+                    cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
+
+                    const badge = cardInstance.querySelector(".status-badge");
+                    badge.setAttribute("data-status", status);
+
+                    const badgeIcon = badge.querySelector("i");
+                    const badgeText = badge.querySelector(".status-text");
+
+                    if (status === "valid") {
+                        badgeIcon.className = "fa-solid fa-circle-check";
+                        badgeText.textContent = "Valid";
+                    } else if (status === "warning") {
+                        badgeIcon.className = "fa-solid fa-circle-info";
+                        badgeText.textContent = "Valid (Caveat)";
+                    } else {
+                        badgeIcon.className = "fa-solid fa-triangle-exclamation";
+                        badgeText.textContent = "Fallacious";
+                    }
+
+                    const premises = arg.reconstructed_syllogism.premises;
+                    const conclusion = arg.reconstructed_syllogism.conclusion;
+
+                    fillPropRow(cardInstance.querySelector(".prop-row.premise-1"), premises[0]);
+                    
+                    const p2Row = cardInstance.querySelector(".prop-row.premise-2");
+                    if (premises.length > 1) {
+                        fillPropRow(p2Row, premises[1]);
+                    } else {
+                        p2Row.classList.add("hidden");
+                    }
+
+                    fillPropRow(cardInstance.querySelector(".prop-row.conclusion-prop"), conclusion);
+
+                    const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
+                    diagramWrapper.innerHTML = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion, cardIndex);
+
+                    cardInstance.querySelector(".term-minor-val").textContent = arg.minor_term || "[None]";
+                    cardInstance.querySelector(".term-major-val").textContent = arg.major_term || "[None]";
+                    cardInstance.querySelector(".term-middle-val").textContent = arg.middle_term || "[None]";
+
+                    const fallaciesSection = cardInstance.querySelector(".arg-fallacies-section");
+                    const fallaciesList = cardInstance.querySelector(".fallacies-list");
+
+                    if (arg.violations && arg.violations.length > 0) {
+                        fallaciesSection.classList.remove("hidden");
+                        arg.violations.forEach(v => {
+                            const fallCard = document.createElement("div");
+                            fallCard.className = "fallacy-violation-card";
+                            fallCard.setAttribute("data-warning", v.is_warning ? "true" : "false");
+
+                            fallCard.innerHTML = `
+                                <div class="fallacy-title-row">
+                                    <i class="${v.is_warning ? 'fa-solid fa-circle-info' : 'fa-solid fa-circle-xmark'}"></i>
+                                    <h5>${v.title}</h5>
+                                </div>
+                                <p class="fallacy-desc">${v.description}</p>
+                                <p class="fallacy-details">${v.details}</p>
+                            `;
+                            fallaciesList.appendChild(fallCard);
+                        });
+                    }
+
+                    argumentsList.appendChild(cardInstance);
+                });
+            }
+            else if (event === "completed") {
+                progressFill.style.width = "100%";
+                progressText.textContent = "Analysis completed!";
+                
+                setTimeout(() => {
+                    setLoading(false);
+                    
+                    resultsSection.classList.remove("hidden");
+                    document.querySelector(".app-container").classList.add("layout-quadrants");
+                    
+                    if (argumentsArray.length === 0) {
+                        alert("No logical arguments could be identified in the text. Ensure your text contains logical claims, assertions, or assumptions.");
+                    } else {
+                        if (!window.matchMedia("(min-width: 1024px)").matches) {
+                            resultsSection.scrollIntoView({ behavior: "smooth" });
+                        }
+                    }
+                }, 500);
+            }
         }
     });
 
@@ -93,17 +333,11 @@ However, others claim that all cats are animals and all dogs are animals, which 
         }
     }
 
-    function renderResults(data) {
-        // Clear previous arguments
-        argumentsList.innerHTML = "";
-
-        // 1. Render spaCy Semantic Concepts
-        const concepts = data.concepts || {};
+    function renderConceptsAndRawSpacyArgs(concepts, rawSpacyArgs) {
         const nounChunksContainer = document.getElementById("concepts-noun-chunks");
         const entitiesContainer = document.getElementById("concepts-entities");
         const keyTermsContainer = document.getElementById("concepts-key-terms");
 
-        // Fill Noun Chunks
         nounChunksContainer.innerHTML = "";
         if (concepts.noun_chunks && concepts.noun_chunks.length > 0) {
             concepts.noun_chunks.forEach(chunk => {
@@ -116,7 +350,6 @@ However, others claim that all cats are animals and all dogs are animals, which 
             nounChunksContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
         }
 
-        // Fill Entities
         entitiesContainer.innerHTML = "";
         if (concepts.entities && concepts.entities.length > 0) {
             concepts.entities.forEach(ent => {
@@ -129,7 +362,6 @@ However, others claim that all cats are animals and all dogs are animals, which 
             entitiesContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
         }
 
-        // Fill Key Terms
         keyTermsContainer.innerHTML = "";
         if (concepts.key_terms && concepts.key_terms.length > 0) {
             concepts.key_terms.forEach(term => {
@@ -142,15 +374,14 @@ However, others claim that all cats are animals and all dogs are animals, which 
             keyTermsContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
         }
 
-        // 2. Render spaCy Raw Parsed Arguments
         const rawArgsContainer = document.getElementById("raw-spacy-arguments");
         rawArgsContainer.innerHTML = "";
-        const rawSpacyArgs = data.raw_spacy_arguments || [];
+        const rawSpacyArguments = rawSpacyArgs || [];
 
-        if (rawSpacyArgs.length === 0) {
+        if (rawSpacyArguments.length === 0) {
             rawArgsContainer.innerHTML = '<div class="raw-arg-empty">No explicit arguments parsed directly by spaCy. Sending full text to the AI Agent for deep reconstruction.</div>';
         } else {
-            rawSpacyArgs.forEach((arg, index) => {
+            rawSpacyArguments.forEach((arg, index) => {
                 const item = document.createElement("div");
                 item.className = "raw-arg-item animate-slide-up";
                 
@@ -177,142 +408,15 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 rawArgsContainer.appendChild(item);
             });
         }
+    }
 
-        // Show the concepts card
-        document.getElementById("spacy-concepts-card").classList.remove("hidden");
-
-        if (!data.success || !data.arguments || data.arguments.length === 0) {
-            resultsCountBadge.textContent = "0 Arguments Extracted";
-            statValid.textContent = "0";
-            statInvalid.textContent = "0";
-            statWarnings.textContent = "0";
-            alert("No logical arguments could be identified in the text. Ensure your text contains logical claims, assertions, or assumptions.");
-            return;
-        }
-
-        const args = data.arguments;
-        resultsCountBadge.textContent = `${args.length} Argument${args.length > 1 ? 's' : ''} Extracted`;
-
-        let validCount = 0;
-        let invalidCount = 0;
-        let warningCount = 0;
-
-        args.forEach((arg, index) => {
-            // Count logic
-            let status = "invalid";
-            if (arg.is_valid) {
-                // Check if there are warning-only violations
-                const hasWarnings = arg.violations && arg.violations.some(v => v.is_warning);
-                if (hasWarnings) {
-                    status = "warning";
-                    warningCount++;
-                } else {
-                    status = "valid";
-                    validCount++;
-                }
-            } else {
-                invalidCount++;
-            }
-
-            // Create Card from Template
-            const cardInstance = cardTemplate.content.cloneNode(true);
-
-            // Set indexes & titles
-            cardInstance.querySelector(".arg-index").textContent = `Argument #${index + 1}`;
-            cardInstance.querySelector(".excerpt-text").textContent = `"${arg.original_text}"`;
-            cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
-
-            // Set status badges
-            const badge = cardInstance.querySelector(".status-badge");
-            badge.setAttribute("data-status", status);
-
-            const badgeIcon = badge.querySelector("i");
-            const badgeText = badge.querySelector(".status-text");
-
-            if (status === "valid") {
-                badgeIcon.className = "fa-solid fa-circle-check";
-                badgeText.textContent = "Valid";
-            } else if (status === "warning") {
-                badgeIcon.className = "fa-solid fa-circle-info";
-                badgeText.textContent = "Valid (Caveat)";
-            } else {
-                badgeIcon.className = "fa-solid fa-triangle-exclamation";
-                badgeText.textContent = "Fallacious";
-            }
-
-            // Map Premises & Conclusion in UI
-            const premises = arg.reconstructed_syllogism.premises;
-            const conclusion = arg.reconstructed_syllogism.conclusion;
-
-            // Render Premise 1
-            const p1Row = cardInstance.querySelector(".prop-row.premise-1");
-            fillPropRow(p1Row, premises[0]);
-
-            // Render Premise 2
-            const p2Row = cardInstance.querySelector(".prop-row.premise-2");
-            if (premises.length > 1) {
-                fillPropRow(p2Row, premises[1]);
-            } else {
-                p2Row.classList.add("hidden");
-            }
-
-            // Render Conclusion
-            const concRow = cardInstance.querySelector(".prop-row.conclusion-prop");
-            fillPropRow(concRow, conclusion);
-
-            // Draw Euler/Venn Diagram
-            const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
-            const svgContent = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion, index);
-            diagramWrapper.innerHTML = svgContent;
-
-            // Fill Legend
-            cardInstance.querySelector(".term-minor-val").textContent = arg.minor_term || "[None]";
-            cardInstance.querySelector(".term-major-val").textContent = arg.major_term || "[None]";
-            cardInstance.querySelector(".term-middle-val").textContent = arg.middle_term || "[None]";
-
-            // Handle Fallacies/Violations section
-            const fallaciesSection = cardInstance.querySelector(".arg-fallacies-section");
-            const fallaciesList = cardInstance.querySelector(".fallacies-list");
-
-            if (arg.violations && arg.violations.length > 0) {
-                fallaciesSection.classList.remove("hidden");
-                arg.violations.forEach(v => {
-                    const fallCard = document.createElement("div");
-                    fallCard.className = "fallacy-violation-card";
-                    fallCard.setAttribute("data-warning", v.is_warning ? "true" : "false");
-
-                    fallCard.innerHTML = `
-                        <div class="fallacy-title-row">
-                            <i class="${v.is_warning ? 'fa-solid fa-circle-info' : 'fa-solid fa-circle-xmark'}"></i>
-                            <h5>${v.title}</h5>
-                        </div>
-                        <p class="fallacy-desc">${v.description}</p>
-                        <p class="fallacy-details">${v.details}</p>
-                    `;
-                    fallaciesList.appendChild(fallCard);
-                });
-            }
-
-            // Append argument card to list
-            argumentsList.appendChild(cardInstance);
-        });
-
-        // Set top dashboard counters
-        statValid.textContent = validCount;
-        statInvalid.textContent = invalidCount;
-        statWarnings.textContent = warningCount;
-
-        // Display results block
-        resultsSection.classList.remove("hidden");
-
-        // Activate quadrant layout
-        const appContainer = document.querySelector(".app-container");
-        appContainer.classList.add("layout-quadrants");
-
-        // Only scroll to results on mobile/tablets where it flows vertically
-        if (!window.matchMedia("(min-width: 1024px)").matches) {
-            resultsSection.scrollIntoView({ behavior: "smooth" });
-        }
+    function animateValueUpdate(targetElement, newValue) {
+        if (!targetElement) return;
+        targetElement.textContent = newValue;
+        targetElement.classList.add("scale-up-animation");
+        setTimeout(() => {
+            targetElement.classList.remove("scale-up-animation");
+        }, 250);
     }
 
     function fillPropRow(rowElement, propData) {

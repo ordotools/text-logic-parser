@@ -354,6 +354,7 @@ def parse_proposition(text: str, nlp=None) -> Proposition:
     copula_text = root.text
     if is_negated:
         # Build "is not" / "are not"
+        # pyrefly: ignore [missing-attribute]
         copula_text = f"{root.text} {neg_token.text}"
 
     # 5. Extract Predicate Term

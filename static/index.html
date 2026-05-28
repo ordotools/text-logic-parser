@@ -75,8 +75,18 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
             <div class="spin-ring">
                 <div class="spin-core"></div>
             </div>
-            <h3>Reading Essay & Unifying Terms...</h3>
-            <p>Gemini AI is identifying premises and structuring them into formal categorical propositions.</p>
+            <h3 id="loader-title">Reading Essay & Unifying Terms...</h3>
+            <p id="loader-subtitle">Gemini AI is identifying premises and structuring them into formal categorical propositions.</p>
+            
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar-container">
+                    <div id="loader-progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-bar-status">
+                    <span id="loader-progress-text">Initializing concurrent workers...</span>
+                    <span id="loader-retry-badge" class="retry-badge hidden"><i class="fa-solid fa-arrows-rotate fa-spin"></i> Retry Active</span>
+                </div>
+            </div>
         </div>
 
         <!-- SpaCy Semantic & Parsing Analysis -->

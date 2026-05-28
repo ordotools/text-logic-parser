@@ -2,7 +2,9 @@ import os
 import pytest
 import sys
 from unittest.mock import patch, MagicMock
+# pyrefly: ignore [missing-import]
 from fastapi.testclient import TestClient
+# pyrefly: ignore [untyped-import]
 import requests
 
 # Ensure src/ is in the python search path for the test suite
@@ -12,6 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from text_logic_parser.config import Settings
 from text_logic_parser.exceptions import GeminiConfigurationError, GeminiAPIError
 from text_logic_parser.ai_extractor import AIExtractor
+# pyrefly: ignore [missing-import]
 from main import app
 
 
@@ -106,7 +109,9 @@ def test_api_endpoint_missing_api_key():
 @patch("text_logic_parser.ai_extractor.AIExtractor.async_reconstruct_arguments_with_context")
 def test_api_endpoint_rate_limit(mock_async_reconstruct):
     """Verify that the /api/analyze endpoint handles 429 rate limit errors from Gemini API."""
+    # pyrefly: ignore [missing-import]
     from fastapi.testclient import TestClient
+    # pyrefly: ignore [missing-import]
     from main import app
     client = TestClient(app)
     
@@ -129,7 +134,9 @@ def test_api_endpoint_rate_limit(mock_async_reconstruct):
 @patch("text_logic_parser.ai_extractor.AIExtractor.async_reconstruct_arguments_with_context")
 def test_api_endpoint_forbidden(mock_async_reconstruct):
     """Verify that the /api/analyze endpoint handles 403 authorization failures from Gemini API."""
+    # pyrefly: ignore [missing-import]
     from fastapi.testclient import TestClient
+    # pyrefly: ignore [missing-import]
     from main import app
     client = TestClient(app)
     

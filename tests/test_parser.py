@@ -90,7 +90,9 @@ def test_parse_syllogism_no_indicators(nlp):
     syll = parse_syllogism(text, nlp)
 
     assert len(syll.premises) == 2
+    # pyrefly: ignore [missing-attribute]
     assert syll.major_premise.type_code == "A"
+    # pyrefly: ignore [missing-attribute]
     assert syll.minor_premise.type_code == "Singular Affirmative"
     assert syll.conclusion.type_code == "Singular Affirmative"
     assert normalize_term(syll.middle_term) == "human"
@@ -165,7 +167,9 @@ def test_parse_syllogism(nlp):
     assert normalize_term(syll.middle_term) == "man"
     
     assert syll.conclusion.type_code == "Singular Affirmative"
+    # pyrefly: ignore [missing-attribute]
     assert syll.major_premise.type_code == "A"
+    # pyrefly: ignore [missing-attribute]
     assert syll.minor_premise.type_code == "Singular Affirmative"
 
 

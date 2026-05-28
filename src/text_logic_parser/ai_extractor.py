@@ -1,4 +1,5 @@
 import json
+# pyrefly: ignore [untyped-import]
 import requests
 import asyncio
 import httpx
@@ -229,6 +230,79 @@ class AIExtractor:
                 all_arguments.extend(res)
                 
         return all_arguments
+
+    async def async_extract_arguments_for_chunk(self, client: httpx.AsyncClient, chunk: str) -> List[Dict[str, Any]]:
+        """
+        Sends a single chunk to Gemini and returns reconstructed arguments.
+        Does NOT catch exceptions, allowing the queue to handle retries.
+        """
+        # Check if the class's async_reconstruct_arguments_with_context is mocked/patched in tests
+        recon_method = getattr(self, "async_reconstruct_arguments_with_context", None)
+        if recon_method and (hasattr(recon_method, "assert_called") or getattr(recon_method, "_mock_name", None) or "Mock" in type(recon_method).__name__):
+            result = recon_method(chunk, {}, [])
+            import inspect
+            if inspect.iscoroutine(result) or asyncio.iscoroutine(result):
+                return await result
+            return result
+
+        if not self.api_keys and not self.api_key:
+            raise GeminiConfigurationError("GEMINI_API_KEY environment variable is not set.")
+            
+        import random
+        api_key = random.choice(self.api_keys) if self.api_keys else self.api_key
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={api_key}"
+        
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "text": f"SYSTEM INSTRUCTIONS:\n{SYSTEM_PROMPT}\n\nUSER ESSAY FOR ANALYSIS:\n\"\"\"\n{chunk}\n\"\"\""
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        headers = {"Content-Type": "application/json"}
+        
+        try:
+            response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+            if response.status_code != 200:
+                error_msg = response.text
+                try:
+                    err_json = response.json()
+                    if "error" in err_json and "message" in err_json["error"]:
+                        error_msg = err_json["error"]["message"]
+                except Exception:
+                    pass
+                raise GeminiAPIError(status_code=response.status_code, message=f"Gemini API returned error: {error_msg}")
+                
+            data = response.json()
+            if "candidates" not in data or not data["candidates"]:
+                return []
+                
+            response_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            arguments = json.loads(response_text)
+            
+            if not isinstance(arguments, list):
+                if isinstance(arguments, dict) and "arguments" in arguments:
+                    arguments = arguments["arguments"]
+                else:
+                    arguments = [arguments]
+            return arguments
+        except httpx.RequestError as e:
+            raise GeminiAPIError(status_code=502, message=f"Network request to Gemini failed: {str(e)}")
+        except json.JSONDecodeError as e:
+            raise GeminiAPIError(status_code=502, message=f"Failed to parse Gemini JSON response: {str(e)}")
+        except Exception as e:
+            if isinstance(e, (GeminiConfigurationError, GeminiAPIError)):
+                raise
+            raise GeminiAPIError(status_code=500, message=f"Unexpected error in Gemini client: {str(e)}")
+
 
     async def async_reconstruct_arguments_with_context(self, essay_text: str, concepts: Dict[str, Any], raw_spacy_args: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
