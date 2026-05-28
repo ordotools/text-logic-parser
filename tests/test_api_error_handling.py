@@ -20,7 +20,7 @@ client = TestClient(app)
 def test_settings_default_values():
     """Verify that settings has the correct default values."""
     settings = Settings(gemini_api_key=None)
-    assert settings.gemini_model == "gemini-2.5-flash"
+    assert settings.gemini_model == "gemini-1.5-flash-lite"
     assert settings.gemini_api_key is None
 
 def test_settings_env_override():
@@ -103,37 +103,43 @@ def test_api_endpoint_missing_api_key():
             assert "resolution" in json_data
             assert "GEMINI_API_KEY" in json_data["resolution"]
 
-@patch("text_logic_parser.ai_extractor.requests.post")
-def test_api_endpoint_rate_limit(mock_post):
+@patch("text_logic_parser.ai_extractor.AIExtractor.async_reconstruct_arguments_with_context")
+def test_api_endpoint_rate_limit(mock_async_reconstruct):
     """Verify that the /api/analyze endpoint handles 429 rate limit errors from Gemini API."""
-    mock_response = MagicMock()
-    mock_response.status_code = 429
-    mock_response.text = "Rate limit exceeded"
-    mock_response.json.return_value = {"error": {"message": "Rate limit exceeded"}}
-    mock_post.return_value = mock_response
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    
+    from text_logic_parser.exceptions import GeminiAPIError
+    import pytest
+    from unittest.mock import AsyncMock
+    
+    mock_async_reconstruct.side_effect = GeminiAPIError(status_code=429, message="Rate limit exceeded")
 
     # Force a key to be present so it doesn't trigger the 412 error
     with patch("main.settings.gemini_api_key", "test-key-active"):
         with patch("text_logic_parser.ai_extractor.settings.gemini_api_key", "test-key-active"):
-            response = client.post("/api/analyze", json={"text": "All men are mortal."})
+            response = client.post("/api/analyze", json={"text": "All men are mortal... it doesn't parse locally"})
             assert response.status_code == 429
             json_data = response.json()
             assert json_data["success"] is False
             assert json_data["error"] == "Gemini API Failure"
             assert "rate limit" in json_data["message"].lower()
 
-@patch("text_logic_parser.ai_extractor.requests.post")
-def test_api_endpoint_forbidden(mock_post):
+@patch("text_logic_parser.ai_extractor.AIExtractor.async_reconstruct_arguments_with_context")
+def test_api_endpoint_forbidden(mock_async_reconstruct):
     """Verify that the /api/analyze endpoint handles 403 authorization failures from Gemini API."""
-    mock_response = MagicMock()
-    mock_response.status_code = 403
-    mock_response.text = "Forbidden"
-    mock_response.json.return_value = {"error": {"message": "API key not valid."}}
-    mock_post.return_value = mock_response
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
+    
+    from text_logic_parser.exceptions import GeminiAPIError
+    
+    mock_async_reconstruct.side_effect = GeminiAPIError(status_code=403, message="API key not valid.")
 
     with patch("main.settings.gemini_api_key", "invalid-key-active"):
         with patch("text_logic_parser.ai_extractor.settings.gemini_api_key", "invalid-key-active"):
-            response = client.post("/api/analyze", json={"text": "All men are mortal."})
+            response = client.post("/api/analyze", json={"text": "All men are mortal... it doesn't parse locally"})
             assert response.status_code == 403
             json_data = response.json()
             assert json_data["success"] is False

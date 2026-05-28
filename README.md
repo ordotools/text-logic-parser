@@ -65,6 +65,6 @@ This will run a simple sentence tokenization pipeline on a classic categorical s
 - [x] Initial setup and dependency tracking (`requirements.txt`, `README.md`)
 - [ ] Restructure project into a modular Python package (`src/`, `tests/`)
 - [ ] Define the logical domain model (`Term`, `Proposition`, `Syllogism`)
-- [ ] Implement rule-based parsing with spaCy (extracting quantifiers, subjects, predicates, copulas, and conclusion indicators)
+- [ ] Implement rule-based parsing with spaCy (extracting quantifiers, subjects, predicates, copulas, and structural / dependency-based argument segmentation)
 - [ ] Create a syllogism validation engine (applying rules of categorical syllogisms)
 - [ ] Add a CLI interface and test suite

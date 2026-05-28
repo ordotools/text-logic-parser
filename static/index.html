@@ -101,6 +101,47 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                 </div>
             </div>
 
+            <!-- SpaCy Semantic & Parsing Analysis -->
+            <div class="spacy-concepts-card card hidden animate-slide-up" id="spacy-concepts-card">
+                <div class="concepts-header">
+                    <h3><i class="fa-solid fa-brain"></i> SpaCy Semantic &amp; Parsing Analysis</h3>
+                    <p>Concepts, entities, and raw logical premises extracted locally by the spaCy NLP engine before AI formalization.</p>
+                </div>
+                <div class="concepts-dashboard-grid">
+                    <!-- Left Side: Concepts & Terms Tags -->
+                    <div class="concepts-tags-section">
+                        <div class="concept-group">
+                            <span class="group-title"><i class="fa-solid fa-cube text-blue"></i> Noun Chunks</span>
+                            <div class="concept-tags" id="concepts-noun-chunks">
+                                <!-- Noun chunks will be rendered here -->
+                            </div>
+                        </div>
+                        <div class="concept-group">
+                            <span class="group-title"><i class="fa-solid fa-tags text-pink"></i> Named Entities</span>
+                            <div class="concept-tags" id="concepts-entities">
+                                <!-- Entities will be rendered here -->
+                            </div>
+                        </div>
+                        <div class="concept-group">
+                            <span class="group-title"><i class="fa-solid fa-key text-gold"></i> Key Terms</span>
+                            <div class="concept-tags" id="concepts-key-terms">
+                                <!-- Key terms will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Side: Intermediate Raw Arguments parsed from text -->
+                    <div class="concepts-args-section">
+                        <div class="concept-group raw-args-group">
+                            <span class="group-title"><i class="fa-solid fa-code-pull-request text-gold"></i> Raw Parsed Arguments (Local Progress)</span>
+                            <div class="raw-arguments-list" id="raw-spacy-arguments">
+                                <!-- Raw arguments will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Arguments List -->
             <div id="arguments-list" class="arguments-list">
                 <!-- Argument Cards will be dynamically inserted here -->
@@ -135,6 +176,12 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
             <div class="arg-excerpt">
                 <span class="excerpt-label"><i class="fa-solid fa-quote-left"></i> Raw Essay Excerpt:</span>
                 <blockquote class="excerpt-text">"..."</blockquote>
+            </div>
+
+            <!-- Rationale / Mapping Explanation -->
+            <div class="arg-rationale">
+                <span class="rationale-label"><i class="fa-solid fa-lightbulb"></i> Reconstruction Rationale:</span>
+                <p class="rationale-text">...</p>
             </div>
 
             <!-- Main Split Layout -->

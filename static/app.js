@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const resultsSection = document.getElementById("results-section");
     const argumentsList = document.getElementById("arguments-list");
     const resultsCountBadge = document.getElementById("results-count-badge");
-    
+
     // Overview Stats
     const statValid = document.getElementById("stat-valid");
     const statInvalid = document.getElementById("stat-invalid");
@@ -37,6 +37,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
     clearBtn.addEventListener("click", () => {
         essayInput.value = "";
         resultsSection.classList.add("hidden");
+        document.getElementById("spacy-concepts-card").classList.add("hidden");
     });
 
     analyzeBtn.addEventListener("click", async () => {
@@ -92,12 +93,96 @@ However, others claim that all cats are animals and all dogs are animals, which 
         // Clear previous arguments
         argumentsList.innerHTML = "";
 
+        // 1. Render spaCy Semantic Concepts
+        const concepts = data.concepts || {};
+        const nounChunksContainer = document.getElementById("concepts-noun-chunks");
+        const entitiesContainer = document.getElementById("concepts-entities");
+        const keyTermsContainer = document.getElementById("concepts-key-terms");
+
+        // Fill Noun Chunks
+        nounChunksContainer.innerHTML = "";
+        if (concepts.noun_chunks && concepts.noun_chunks.length > 0) {
+            concepts.noun_chunks.forEach(chunk => {
+                const tag = document.createElement("span");
+                tag.className = "concept-tag tag-blue";
+                tag.textContent = chunk;
+                nounChunksContainer.appendChild(tag);
+            });
+        } else {
+            nounChunksContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
+        }
+
+        // Fill Entities
+        entitiesContainer.innerHTML = "";
+        if (concepts.entities && concepts.entities.length > 0) {
+            concepts.entities.forEach(ent => {
+                const tag = document.createElement("span");
+                tag.className = "concept-tag tag-pink";
+                tag.textContent = `${ent.text} [${ent.label}]`;
+                entitiesContainer.appendChild(tag);
+            });
+        } else {
+            entitiesContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
+        }
+
+        // Fill Key Terms
+        keyTermsContainer.innerHTML = "";
+        if (concepts.key_terms && concepts.key_terms.length > 0) {
+            concepts.key_terms.forEach(term => {
+                const tag = document.createElement("span");
+                tag.className = "concept-tag tag-gold";
+                tag.textContent = term;
+                keyTermsContainer.appendChild(tag);
+            });
+        } else {
+            keyTermsContainer.innerHTML = '<span class="concept-tag tag-empty">None detected</span>';
+        }
+
+        // 2. Render spaCy Raw Parsed Arguments
+        const rawArgsContainer = document.getElementById("raw-spacy-arguments");
+        rawArgsContainer.innerHTML = "";
+        const rawSpacyArgs = data.raw_spacy_arguments || [];
+
+        if (rawSpacyArgs.length === 0) {
+            rawArgsContainer.innerHTML = '<div class="raw-arg-empty">No explicit arguments parsed directly by spaCy. Sending full text to the AI Agent for deep reconstruction.</div>';
+        } else {
+            rawSpacyArgs.forEach((arg, index) => {
+                const item = document.createElement("div");
+                item.className = "raw-arg-item animate-slide-up";
+                
+                let premisesHtml = "";
+                arg.raw_premises.forEach((p, idx) => {
+                    premisesHtml += `
+                        <div class="raw-arg-prop-row">
+                            <span class="label">Premise ${idx+1}:</span>
+                            <span class="val">${p}</span>
+                        </div>
+                    `;
+                });
+                
+                item.innerHTML = `
+                    <div class="raw-arg-title">Argument candidate #${index + 1}</div>
+                    <div class="raw-arg-props">
+                        ${premisesHtml}
+                        <div class="raw-arg-prop-row">
+                            <span class="label">Conclusion:</span>
+                            <span class="val">${arg.raw_conclusion}</span>
+                        </div>
+                    </div>
+                `;
+                rawArgsContainer.appendChild(item);
+            });
+        }
+
+        // Show the concepts card
+        document.getElementById("spacy-concepts-card").classList.remove("hidden");
+
         if (!data.success || !data.arguments || data.arguments.length === 0) {
             resultsCountBadge.textContent = "0 Arguments Extracted";
             statValid.textContent = "0";
             statInvalid.textContent = "0";
             statWarnings.textContent = "0";
-            alert("No logical arguments could be identified in the text. Make sure your sentences make claims using logical indicators like 'therefore', 'so', or 'consequently'.");
+            alert("No logical arguments could be identified in the text. Ensure your text contains logical claims, assertions, or assumptions.");
             return;
         }
 
@@ -127,18 +212,19 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
             // Create Card from Template
             const cardInstance = cardTemplate.content.cloneNode(true);
-            
+
             // Set indexes & titles
             cardInstance.querySelector(".arg-index").textContent = `Argument #${index + 1}`;
             cardInstance.querySelector(".excerpt-text").textContent = `"${arg.original_text}"`;
-            
+            cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
+
             // Set status badges
             const badge = cardInstance.querySelector(".status-badge");
             badge.setAttribute("data-status", status);
-            
+
             const badgeIcon = badge.querySelector("i");
             const badgeText = badge.querySelector(".status-text");
-            
+
             if (status === "valid") {
                 badgeIcon.className = "fa-solid fa-circle-check";
                 badgeText.textContent = "Valid";
@@ -219,7 +305,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
     function fillPropRow(rowElement, propData) {
         if (!propData) return;
-        
+
         // Quantifier formatting
         const qElement = rowElement.querySelector(".quantifier");
         qElement.textContent = propData.quantifier ? capitalize(propData.quantifier) + " " : "";
@@ -231,7 +317,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
         // Type Code and Implicit badge
         rowElement.querySelector(".prop-badge.type-code").textContent = propData.type_code;
-        
+
         const implicitBadge = rowElement.querySelector(".prop-badge.implicit-badge");
         if (implicitBadge) {
             if (propData.is_implicit) {
@@ -244,7 +330,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         // Distribution details
         const sDist = rowElement.querySelector(".dist-tag.subject-dist");
         const pDist = rowElement.querySelector(".dist-tag.predicate-dist");
-        
+
         sDist.setAttribute("data-dist", propData.is_subject_distributed ? "true" : "false");
         sDist.textContent = `Subject: ${propData.is_subject_distributed ? 'Distributed' : 'Undistributed'}`;
 
@@ -301,20 +387,20 @@ However, others claim that all cats are animals and all dogs are animals, which 
                     else if (s.endsWith("s")) s = s.slice(0, -1);
                     return s.trim();
                 };
-                
+
                 const termNorm = norm(termText);
                 const sNorm = norm(minT);
                 const pNorm = norm(majT);
                 const mNorm = norm(midT);
-                
+
                 if (termNorm === sNorm) return "S";
                 if (termNorm === pNorm) return "P";
                 if (termNorm === mNorm) return "M";
-                
+
                 if (sNorm.includes(termNorm) || termNorm.includes(sNorm)) return "S";
                 if (pNorm.includes(termNorm) || termNorm.includes(pNorm)) return "P";
                 if (mNorm.includes(termNorm) || termNorm.includes(mNorm)) return "M";
-                
+
                 return null;
             };
 
@@ -338,7 +424,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 let shade = [];
                 let x = [];
                 const key = `${subjRole}-${predRole}`;
-                
+
                 if (key === "S-M") {
                     if (typeCode === "A") shade = [1, 6];
                     else if (typeCode === "E") shade = [4, 7];

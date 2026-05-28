@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -14,12 +15,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src'
 from text_logic_parser import (
     Proposition, 
     Syllogism, 
-    parse_syllogism,
     validate_syllogism, 
     AIExtractor, 
     settings, 
     GeminiConfigurationError, 
-    GeminiAPIError
+    GeminiAPIError,
+    analyze_text_concepts,
+    extract_raw_arguments_local
 )
 
 # Setup logger
@@ -104,67 +106,27 @@ async def analyze_essay(request: EssayRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Essay text cannot be empty.")
         
+    start_time = time.perf_counter()
+        
     try:
-        # 1. Attempt fast local parsing for strict logical arguments
-        try:
-            syll = parse_syllogism(request.text)
-            if len(syll.premises) == 2:
-                # Valid strict structure, bypass Gemini!
-                violations = validate_syllogism(syll)
-                is_valid = not any(not v.get("is_warning", False) for v in violations)
-                
-                formatted_premises = []
-                for p in syll.premises:
-                    formatted_premises.append({
-                        "quantifier": p.quantifier,
-                        "subject": p.subject,
-                        "copula": p.copula,
-                        "predicate": p.predicate,
-                        "is_implicit": p.is_implicit,
-                        "type_code": p.type_code,
-                        "is_subject_distributed": p.is_subject_distributed,
-                        "is_predicate_distributed": p.is_predicate_distributed
-                    })
-                    
-                formatted_conclusion = {
-                    "quantifier": syll.conclusion.quantifier,
-                    "subject": syll.conclusion.subject,
-                    "copula": syll.conclusion.copula,
-                    "predicate": syll.conclusion.predicate,
-                    "type_code": syll.conclusion.type_code,
-                    "is_subject_distributed": syll.conclusion.is_subject_distributed,
-                    "is_predicate_distributed": syll.conclusion.is_predicate_distributed
-                }
-                
-                return {
-                    "success": True,
-                    "arguments": [{
-                        "original_text": request.text,
-                        "reconstructed_syllogism": {
-                            "premises": formatted_premises,
-                            "conclusion": formatted_conclusion
-                        },
-                        "minor_term": syll.minor_term,
-                        "major_term": syll.major_term,
-                        "middle_term": syll.middle_term,
-                        "violations": violations,
-                        "is_valid": is_valid
-                    }]
-                }
-        except Exception:
-            # Fallback to AI Extractor
-            pass
-
-        # 2. Main pipeline using Gemini AI for unstructured essays
+        # 1. Run local spaCy Semantic concept extraction
+        concepts = analyze_text_concepts(request.text)
+        
+        # 2. Run local spaCy Argument structure extraction (Show intermediate work)
+        raw_spacy_args = extract_raw_arguments_local(request.text)
+        
+        # 3. Call AI Syllogistic Reconstruction Agent
         extractor = AIExtractor()
-        extracted_args = extractor.extract_arguments(request.text)
+        extracted_args = await extractor.async_reconstruct_arguments_with_context(
+            request.text, concepts, raw_spacy_args
+        )
         
         response_arguments = []
-        
         for arg in extracted_args:
             orig_text = arg.get("original_text", "")
-            recon = arg.get("reconstructed_syllogism", {})
+            rationale = arg.get("rationale", "Reconstructed from text context.")
             
+            recon = arg.get("reconstructed_syllogism", {})
             premise_jsons = recon.get("premises", [])
             conclusion_json = recon.get("conclusion", {})
             
@@ -221,6 +183,7 @@ async def analyze_essay(request: EssayRequest):
             
             response_arguments.append({
                 "original_text": orig_text,
+                "rationale": rationale,
                 "reconstructed_syllogism": {
                     "premises": formatted_premises,
                     "conclusion": formatted_conclusion
@@ -232,9 +195,13 @@ async def analyze_essay(request: EssayRequest):
                 "is_valid": is_valid
             })
             
+        processing_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return {
             "success": True,
-            "arguments": response_arguments
+            "concepts": concepts,
+            "raw_spacy_arguments": raw_spacy_args,
+            "arguments": response_arguments,
+            "processing_time_ms": processing_time_ms
         }
         
     except (GeminiConfigurationError, GeminiAPIError):
