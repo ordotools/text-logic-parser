@@ -122,6 +122,9 @@ async def analyze_essay(request: EssayRequest):
         )
         
         response_arguments = []
+        seen_reconstructed = set()
+        from text_logic_parser.models import normalize_term
+        
         for arg in extracted_args:
             orig_text = arg.get("original_text", "")
             rationale = arg.get("rationale", "Reconstructed from text context.")
@@ -147,6 +150,22 @@ async def analyze_essay(request: EssayRequest):
                 copula=conclusion_json.get("copula", ""),
                 predicate=conclusion_json.get("predicate", "")
             )
+            
+            # Deduplicate based on logical key of normalized premises and conclusion
+            def norm_prop(p):
+                return (
+                    p.quantifier if p.quantifier else "",
+                    normalize_term(p.subject),
+                    p.copula,
+                    normalize_term(p.predicate)
+                )
+            p_tuples = tuple(sorted(norm_prop(p) for p in premises))
+            c_tuple = norm_prop(conclusion)
+            arg_key = (p_tuples, c_tuple)
+            
+            if arg_key in seen_reconstructed:
+                continue
+            seen_reconstructed.add(arg_key)
             
             # Create Syllogism
             syll = Syllogism(premises, conclusion)

@@ -258,7 +258,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
             // Draw Euler/Venn Diagram
             const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
-            const svgContent = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion);
+            const svgContent = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion, index);
             diagramWrapper.innerHTML = svgContent;
 
             // Fill Legend
@@ -338,11 +338,14 @@ However, others claim that all cats are animals and all dogs are animals, which 
         pDist.textContent = `Predicate: ${propData.is_predicate_distributed ? 'Distributed' : 'Undistributed'}`;
     }
 
-    function drawEulerDiagram(minor, major, middle, status, premises, conclusion) {
+    function drawEulerDiagram(minor, major, middle, status, premises, conclusion, index) {
         // Safe string truncated for labels
         const S = truncate(minor, 12);
         const P = truncate(major, 12);
         const M = truncate(middle, 12);
+
+        // Generate a unique suffix for this diagram's IDs to prevent collisions in the DOM
+        const suffix = index !== undefined ? index : Math.floor(Math.random() * 1000000);
 
         let iconOverlay = "";
         let filterShadow = "";
@@ -500,20 +503,20 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 if (shadedRegions[r]) {
                     let mask1, mask2, mask3;
                     switch (r) {
-                        case 1: mask1 = "mask-S"; mask2 = "mask-not-P"; mask3 = "mask-not-M"; break;
-                        case 2: mask1 = "mask-not-S"; mask2 = "mask-P"; mask3 = "mask-not-M"; break;
-                        case 3: mask1 = "mask-not-S"; mask2 = "mask-not-P"; mask3 = "mask-M"; break;
-                        case 4: mask1 = "mask-S"; mask2 = "mask-not-P"; mask3 = "mask-M"; break;
-                        case 5: mask1 = "mask-not-S"; mask2 = "mask-P"; mask3 = "mask-M"; break;
-                        case 6: mask1 = "mask-S"; mask2 = "mask-P"; mask3 = "mask-not-M"; break;
-                        case 7: mask1 = "mask-S"; mask2 = "mask-P"; mask3 = "mask-M"; break;
+                        case 1: mask1 = `mask-S-${suffix}`; mask2 = `mask-not-P-${suffix}`; mask3 = `mask-not-M-${suffix}`; break;
+                        case 2: mask1 = `mask-not-S-${suffix}`; mask2 = `mask-P-${suffix}`; mask3 = `mask-not-M-${suffix}`; break;
+                        case 3: mask1 = `mask-not-S-${suffix}`; mask2 = `mask-not-P-${suffix}`; mask3 = `mask-M-${suffix}`; break;
+                        case 4: mask1 = `mask-S-${suffix}`; mask2 = `mask-not-P-${suffix}`; mask3 = `mask-M-${suffix}`; break;
+                        case 5: mask1 = `mask-not-S-${suffix}`; mask2 = `mask-P-${suffix}`; mask3 = `mask-M-${suffix}`; break;
+                        case 6: mask1 = `mask-S-${suffix}`; mask2 = `mask-P-${suffix}`; mask3 = `mask-not-M-${suffix}`; break;
+                        case 7: mask1 = `mask-S-${suffix}`; mask2 = `mask-P-${suffix}`; mask3 = `mask-M-${suffix}`; break;
                     }
                     shadingSvg += `
                     <g mask="url(#${mask1})">
                         <g mask="url(#${mask2})">
                             <g mask="url(#${mask3})">
                                 <rect x="0" y="0" width="280" height="220" fill="rgba(15, 23, 42, 0.65)" />
-                                <rect x="0" y="0" width="280" height="220" fill="url(#diagonalHatch)" />
+                                <rect x="0" y="0" width="280" height="220" fill="url(#diagonalHatch-${suffix})" />
                             </g>
                         </g>
                     </g>
@@ -527,7 +530,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 <g class="venn-x" stroke="#dfa837" stroke-width="2.5" stroke-linecap="round" opacity="0.95">
                     <line x1="${pt.x - 6}" y1="${pt.y - 6}" x2="${pt.x + 6}" y2="${pt.y + 6}" />
                     <line x1="${pt.x + 6}" y1="${pt.y - 6}" x2="${pt.x - 6}" y2="${pt.y + 6}" />
-                    <circle cx="${pt.x}" cy="${pt.y}" r="6" fill="rgba(223, 168, 55, 0.3)" filter="blur(1px)" />
+                    <circle cx="${pt.x}" cy="${pt.y}" r="6" fill="rgba(223, 168, 55, 0.3)" fill-opacity="0.3" filter="blur(1px)" />
                 </g>
                 `;
             });
@@ -538,38 +541,38 @@ However, others claim that all cats are animals and all dogs are animals, which 
         <svg viewBox="0 0 280 220" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" ${filterShadow}>
             <!-- Definitions for styling -->
             <defs>
-                <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <linearGradient id="goldGlow-${suffix}" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stop-color="#dfa837" stop-opacity="0.2"/>
                     <stop offset="100%" stop-color="#b47e1b" stop-opacity="0.05"/>
                 </linearGradient>
-                <pattern id="diagonalHatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <pattern id="diagonalHatch-${suffix}" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
                     <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1.5" />
                 </pattern>
                 
                 <!-- Masks for each circle -->
-                <mask id="mask-S">
+                <mask id="mask-S-${suffix}">
                     <rect width="280" height="220" fill="black" />
                     <circle cx="95" cy="135" r="48" fill="white" />
                 </mask>
-                <mask id="mask-not-S">
+                <mask id="mask-not-S-${suffix}">
                     <rect width="280" height="220" fill="white" />
                     <circle cx="95" cy="135" r="48" fill="black" />
                 </mask>
                 
-                <mask id="mask-P">
+                <mask id="mask-P-${suffix}">
                     <rect width="280" height="220" fill="black" />
                     <circle cx="185" cy="135" r="48" fill="white" />
                 </mask>
-                <mask id="mask-not-P">
+                <mask id="mask-not-P-${suffix}">
                     <rect width="280" height="220" fill="white" />
                     <circle cx="185" cy="135" r="48" fill="black" />
                 </mask>
                 
-                <mask id="mask-M">
+                <mask id="mask-M-${suffix}">
                     <rect width="280" height="220" fill="black" />
                     <circle cx="140" cy="85" r="48" fill="white" />
                 </mask>
-                <mask id="mask-not-M">
+                <mask id="mask-not-M-${suffix}">
                     <rect width="280" height="220" fill="white" />
                     <circle cx="140" cy="85" r="48" fill="black" />
                 </mask>
@@ -585,7 +588,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
             <circle cx="185" cy="135" r="48" fill="rgba(236, 72, 153, 0.04)" stroke="#ec4899" stroke-width="2" stroke-dasharray="4 2" />
             
             <!-- Middle Circle (Top) M -->
-            <circle cx="140" cy="85" r="48" fill="url(#goldGlow)" stroke="#dfa837" stroke-width="2" />
+            <circle cx="140" cy="85" r="48" fill="url(#goldGlow-${suffix})" stroke="#dfa837" stroke-width="2" />
             
             <!-- Dynamic X Existential Badges -->
             ${xSvg}

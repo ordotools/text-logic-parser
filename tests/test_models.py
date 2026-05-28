@@ -88,3 +88,20 @@ def test_syllogism_term_deduction():
     # Minor premise contains minor term "Socrates" -> premise1
     assert syll.major_premise == premise2
     assert syll.minor_premise == premise1
+
+
+def test_syllogism_unique_overlapping_premise_deduction():
+    # Test case where one premise matches both major and minor terms due to overlap
+    # Premise 1 contains minor term (Socrates) and major term (mortal) -> Socrates is mortal
+    # Premise 2 contains minor term (Socrates) and middle term (man) -> Socrates is a man
+    # Conclusion: Socrates is mortal
+    p1 = Proposition(None, "Socrates", "is", "mortal")
+    p2 = Proposition(None, "Socrates", "is", "a man")
+    conclusion = Proposition(None, "Socrates", "is", "mortal")
+    
+    syll = Syllogism([p1, p2], conclusion)
+    
+    # Due to unique distinct matching, p1 should be assigned as major (contains major term P: mortal)
+    # p2 should be assigned as minor (contains S: Socrates and middle M: man)
+    assert syll.major_premise == p1
+    assert syll.minor_premise == p2

@@ -192,9 +192,55 @@ class Syllogism:
                 self.middle_term = term
                 break
 
+        # Uniquely assign major and minor premises if we have exactly 2 premises
+        self._major_premise = None
+        self._minor_premise = None
+        
+        if len(self.premises) == 2:
+            p1, p2 = self.premises[0], self.premises[1]
+            
+            p1_has_major = self._terms_match(p1.subject, self.major_term) or self._terms_match(p1.predicate, self.major_term)
+            p1_has_minor = self._terms_match(p1.subject, self.minor_term) or self._terms_match(p1.predicate, self.minor_term)
+            p2_has_major = self._terms_match(p2.subject, self.major_term) or self._terms_match(p2.predicate, self.major_term)
+            p2_has_minor = self._terms_match(p2.subject, self.minor_term) or self._terms_match(p2.predicate, self.minor_term)
+            
+            c1_valid = p1_has_major and p2_has_minor
+            c2_valid = p2_has_major and p1_has_minor
+            
+            if c1_valid and not c2_valid:
+                self._major_premise = p1
+                self._minor_premise = p2
+            elif c2_valid and not c1_valid:
+                self._major_premise = p2
+                self._minor_premise = p1
+            elif c1_valid and c2_valid:
+                # Both match. Prefer the assignment that aligns with Middle term (M)
+                p1_has_middle = self._terms_match(p1.subject, self.middle_term) or self._terms_match(p1.predicate, self.middle_term)
+                p2_has_middle = self._terms_match(p2.subject, self.middle_term) or self._terms_match(p2.predicate, self.middle_term)
+                
+                if p1_has_middle and not p2_has_middle:
+                    self._major_premise = p1
+                    self._minor_premise = p2
+                elif p2_has_middle and not p1_has_middle:
+                    self._major_premise = p2
+                    self._minor_premise = p1
+                else:
+                    self._major_premise = p1
+                    self._minor_premise = p2
+            else:
+                # Fallback if no clean match: try to assign whatever fits best
+                if p1_has_major or p2_has_minor:
+                    self._major_premise = p1
+                    self._minor_premise = p2
+                elif p2_has_major or p1_has_minor:
+                    self._major_premise = p2
+                    self._minor_premise = p1
+
     @property
     def major_premise(self) -> Optional[Proposition]:
         """The premise containing the Major Term (P)."""
+        if hasattr(self, "_major_premise") and self._major_premise is not None:
+            return self._major_premise
         for p in self.premises:
             if self._terms_match(p.subject, self.major_term) or self._terms_match(p.predicate, self.major_term):
                 return p
@@ -203,6 +249,8 @@ class Syllogism:
     @property
     def minor_premise(self) -> Optional[Proposition]:
         """The premise containing the Minor Term (S)."""
+        if hasattr(self, "_minor_premise") and self._minor_premise is not None:
+            return self._minor_premise
         for p in self.premises:
             if self._terms_match(p.subject, self.minor_term) or self._terms_match(p.predicate, self.minor_term):
                 return p

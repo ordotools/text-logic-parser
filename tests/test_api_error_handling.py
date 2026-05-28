@@ -20,7 +20,7 @@ client = TestClient(app)
 def test_settings_default_values():
     """Verify that settings has the correct default values."""
     settings = Settings(gemini_api_key=None)
-    assert settings.gemini_model == "gemini-1.5-flash-lite"
+    assert settings.gemini_model == "gemini-3.1-flash-lite"
     assert settings.gemini_api_key is None
 
 def test_settings_env_override():

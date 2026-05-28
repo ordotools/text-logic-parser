@@ -460,8 +460,8 @@ def chunk_essay_for_extraction(text: str, nlp=None) -> List[str]:
             chunk_text = " ".join([s.text for s in chunk_sents]).strip()
             _append_unique_chunk(chunks, seen_chunks, chunk_text)
                 
-            for j in range(start_idx, i+1):
-                used_sentence_indices.add(j)
+            # Only mark the causal sentence itself as used to prevent stealing preceding context
+            used_sentence_indices.add(i)
 
     # 2. Overlapping 3-sentence windows on contiguous unused runs (plain syllogisms).
     i = 0
@@ -560,9 +560,9 @@ def extract_raw_arguments_local(text: str, nlp=None) -> List[Dict[str, Any]]:
             raise RuntimeError("spaCy NLP engine is not loaded. Please download en_core_web_sm.")
         nlp = nlp_engine
 
-    # Chunk the text into logical blocks first
     chunks = chunk_essay_for_extraction(text, nlp)
     raw_arguments = []
+    seen_args = set()
     
     for chunk in chunks:
         chunk_stripped = chunk.strip()
@@ -580,11 +580,18 @@ def extract_raw_arguments_local(text: str, nlp=None) -> List[Dict[str, Any]]:
                 cleaned_conclusion = clean_proposition_text(conclusion, nlp)
                 
                 if cleaned_premises and cleaned_conclusion:
-                    raw_arguments.append({
-                        "original_text": chunk_stripped,
-                        "raw_premises": cleaned_premises,
-                        "raw_conclusion": cleaned_conclusion
-                    })
+                    # Deduplicate based on normalized premises and conclusion
+                    norm_premises = tuple(sorted(p.strip().lower() for p in cleaned_premises))
+                    norm_conclusion = cleaned_conclusion.strip().lower()
+                    arg_key = (norm_premises, norm_conclusion)
+                    
+                    if arg_key not in seen_args:
+                        seen_args.add(arg_key)
+                        raw_arguments.append({
+                            "original_text": chunk_stripped,
+                            "raw_premises": cleaned_premises,
+                            "raw_conclusion": cleaned_conclusion
+                        })
         except Exception:
             pass
             
