@@ -28,7 +28,11 @@ from text_logic_parser import (
     GeminiConfigurationError, 
     GeminiAPIError,
     analyze_text_concepts,
-    extract_raw_arguments_local
+    extract_raw_arguments_local,
+    extract_clauses_v2,
+    find_candidate_arguments,
+    AIExtractorV2,
+    clean_text_v2
 )
 
 # Setup logger
@@ -107,6 +111,7 @@ async def gemini_api_error_handler(request: Request, exc: GeminiAPIError):
 
 class EssayRequest(BaseModel):
     text: str
+    version: str = "v1"
 
 async def stream_analysis(text: str):
     """
@@ -382,13 +387,294 @@ async def stream_analysis(text: str):
     yield f"event: completed\ndata: {json.dumps(completed_payload)}\n\n"
 
 
+async def stream_analysis_v2(text: str):
+    if not settings.gemini_api_key:
+        raise GeminiConfigurationError("GEMINI_API_KEY environment variable is not set.")
+
+    try:
+        concepts = analyze_text_concepts(text)
+    except Exception as e:
+        logger.error(f"Error extracting concepts: {e}")
+        concepts = {"noun_chunks": [], "entities": [], "key_terms": []}
+
+    try:
+        raw_spacy_args = extract_raw_arguments_local(text)
+    except Exception as e:
+        logger.error(f"Error extracting raw spacy arguments: {e}")
+        raw_spacy_args = []
+
+    metadata = {
+        "event": "metadata",
+        "total_chunks": 1,
+        "concepts": concepts,
+        "raw_spacy_arguments": raw_spacy_args
+    }
+    yield f"event: metadata\ndata: {json.dumps(metadata)}\n\n"
+
+    from text_logic_parser.parser import nlp_engine
+    try:
+        clauses = extract_clauses_v2(text, nlp_engine)
+        candidates = find_candidate_arguments(clauses)
+    except Exception as e:
+        logger.error(f"Error extracting candidates: {e}")
+        yield f"event: completed\ndata: {json.dumps({'success': False, 'error': str(e)})}\n\n"
+        return
+
+    total_chunks = len([c for c in candidates if c["type"] in ("syllogism", "enthymeme")])
+    if total_chunks == 0:
+        total_chunks = 1
+        
+    queue = asyncio.Queue()
+    assumptions_list = []
+    
+    for idx, cand in enumerate(candidates):
+        if cand["type"] == "assumption":
+            formatted_conclusion = {
+                "quantifier": None, "subject": cand["conclusion"]["subject"],
+                "copula": "is", "predicate": cand["conclusion"]["predicate"],
+            }
+            assumptions_list.append({
+                "original_text": cand["conclusion"]["original_text"],
+                "rationale": "Flagged as assumption (no supporting premises found).",
+                "reconstructed_syllogism": {
+                    "premises": [],
+                    "conclusion": formatted_conclusion
+                },
+                "minor_term": cand["conclusion"]["subject"],
+                "major_term": cand["conclusion"]["predicate"],
+                "middle_term": "N/A",
+                "violations": [{"rule_id": "ASSUMPTION", "description": "This is an unproven assumption.", "is_warning": True}],
+                "is_valid": False,
+                "is_assumption": True,
+                "global_index": idx
+            })
+        else:
+            await queue.put((idx, cand, 0))
+
+    if assumptions_list:
+        chunk_data = {
+            "event": "chunk_result",
+            "chunk_index": -1,
+            "arguments": assumptions_list,
+            "status": "success",
+            "total_chunks": total_chunks,
+            "processed_chunks": 0
+        }
+        yield f"event: chunk_result\ndata: {json.dumps(chunk_data)}\n\n"
+
+    extractor_v2 = AIExtractorV2()
+    emitted_count = len(assumptions_list)
+
+    concurrency_ceiling = 10
+    workers_count = min(concurrency_ceiling, total_chunks) if total_chunks > 0 else 1
+    result_queue = asyncio.Queue()
+
+    doc = nlp_engine(clean_text_v2(text))
+    sents = list(doc.sents)
+
+    async def worker(worker_id: int, client: httpx.AsyncClient):
+        while True:
+            try:
+                cand_idx, cand, attempt = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+            min_idx, max_idx = cand["chunk_boundaries"]
+            start_idx = max(0, min_idx - 1)
+            end_idx = min(len(sents) - 1, max_idx + 1)
+            chunk_text = " ".join([sents[i].text for i in range(start_idx, end_idx + 1)])
+
+            try:
+                args = await extractor_v2.async_extract_arguments_for_candidates(client, cand, chunk_text)
+                await result_queue.put({
+                    "status": "success",
+                    "chunk_index": cand_idx,
+                    "arguments": args
+                })
+            except Exception as e:
+                logger.error(f"Worker {worker_id} failed on cand {cand_idx} (attempt {attempt+1}): {e}")
+                is_fatal = False
+                if isinstance(e, GeminiConfigurationError):
+                    is_fatal = True
+                elif isinstance(e, GeminiAPIError) and e.status_code in (400, 401, 403, 412, 429):
+                    is_fatal = True
+
+                if is_fatal:
+                    await result_queue.put({
+                        "status": "fatal_error",
+                        "chunk_index": cand_idx,
+                        "exception": e
+                    })
+                    break
+
+                next_attempt = attempt + 1
+                if next_attempt < 3:
+                    await queue.put((cand_idx, cand, next_attempt))
+                    await result_queue.put({
+                        "status": "requeued",
+                        "chunk_index": cand_idx,
+                        "attempt": next_attempt
+                    })
+                else:
+                    await result_queue.put({
+                        "status": "failed",
+                        "chunk_index": cand_idx,
+                        "error": str(e)
+                    })
+            finally:
+                queue.task_done()
+
+    if total_chunks > 0 and workers_count > 0:
+        async with httpx.AsyncClient() as client:
+            worker_tasks = [asyncio.create_task(worker(i, client)) for i in range(workers_count)]
+            completed_cands = set()
+            
+            while len(completed_cands) < total_chunks:
+                if all(t.done() for t in worker_tasks) and result_queue.empty():
+                    break
+                    
+                try:
+                    res = await asyncio.wait_for(result_queue.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    continue
+                    
+                status = res["status"]
+                if status == "fatal_error":
+                    raise res["exception"]
+                    
+                cand_idx = res["chunk_index"]
+                
+                if status == "success":
+                    completed_cands.add(cand_idx)
+                    extracted_args = res["arguments"]
+                    chunk_arguments = []
+                    
+                    from text_logic_parser.models import normalize_term
+                    
+                    for arg in extracted_args:
+                        orig_text = arg.get("original_text", "")
+                        rationale = arg.get("rationale", "Reconstructed from text context.")
+                        recon = arg.get("reconstructed_syllogism", {})
+                        premise_jsons = recon.get("premises", [])
+                        conclusion_json = recon.get("conclusion", {})
+                        
+                        if not premise_jsons or not conclusion_json:
+                            continue
+                            
+                        premises = []
+                        for p_json in premise_jsons:
+                            premises.append(Proposition(
+                                quantifier=p_json.get("quantifier"),
+                                subject=p_json.get("subject", ""),
+                                copula=p_json.get("copula", ""),
+                                predicate=p_json.get("predicate", ""),
+                                is_implicit=p_json.get("is_implicit", False)
+                            ))
+                            
+                        conclusion = Proposition(
+                            quantifier=conclusion_json.get("quantifier"),
+                            subject=conclusion_json.get("subject", ""),
+                            copula=conclusion_json.get("copula", ""),
+                            predicate=conclusion_json.get("predicate", "")
+                        )
+                        
+                        syll = Syllogism(premises, conclusion)
+                        violations = validate_syllogism(syll)
+                        is_valid = not any(not v.get("is_warning", False) for v in violations)
+                        
+                        formatted_premises = []
+                        for p in premises:
+                            formatted_premises.append({
+                                "quantifier": p.quantifier,
+                                "subject": p.subject,
+                                "copula": p.copula,
+                                "predicate": p.predicate,
+                                "is_implicit": p.is_implicit,
+                                "type_code": p.type_code,
+                                "is_subject_distributed": p.is_subject_distributed,
+                                "is_predicate_distributed": p.is_predicate_distributed
+                            })
+                            
+                        formatted_conclusion = {
+                            "quantifier": conclusion.quantifier,
+                            "subject": conclusion.subject,
+                            "copula": conclusion.copula,
+                            "predicate": conclusion.predicate,
+                            "type_code": conclusion.type_code,
+                            "is_subject_distributed": conclusion.is_subject_distributed,
+                            "is_predicate_distributed": conclusion.is_predicate_distributed
+                        }
+                        
+                        chunk_arguments.append({
+                            "original_text": orig_text,
+                            "rationale": rationale,
+                            "reconstructed_syllogism": {
+                                "premises": formatted_premises,
+                                "conclusion": formatted_conclusion
+                            },
+                            "minor_term": syll.minor_term,
+                            "major_term": syll.major_term,
+                            "middle_term": syll.middle_term,
+                            "violations": violations,
+                            "is_valid": is_valid,
+                            "is_assumption": False,
+                            "global_index": cand_idx
+                        })
+                        emitted_count += 1
+                    
+                    if chunk_arguments:
+                        chunk_data = {
+                            "event": "chunk_result",
+                            "chunk_index": cand_idx,
+                            "arguments": chunk_arguments,
+                            "status": "success",
+                            "total_chunks": total_chunks,
+                            "processed_chunks": len(completed_cands)
+                        }
+                        yield f"event: chunk_result\ndata: {json.dumps(chunk_data)}\n\n"
+                    
+                elif status == "requeued":
+                    retry_data = {
+                        "event": "chunk_retry",
+                        "chunk_index": cand_idx,
+                        "attempt": res["attempt"],
+                        "total_chunks": total_chunks
+                    }
+                    yield f"event: chunk_retry\ndata: {json.dumps(retry_data)}\n\n"
+                    
+                elif status == "failed":
+                    completed_cands.add(cand_idx)
+                    chunk_data = {
+                        "event": "chunk_result",
+                        "chunk_index": cand_idx,
+                        "arguments": [],
+                        "status": "failed",
+                        "error": res["error"],
+                        "total_chunks": total_chunks,
+                        "processed_chunks": len(completed_cands)
+                    }
+                    yield f"event: chunk_result\ndata: {json.dumps(chunk_data)}\n\n"
+                    
+                result_queue.task_done()
+                
+            await asyncio.gather(*worker_tasks, return_exceptions=True)
+
+    completed_payload = {
+        "event": "completed",
+        "success": True,
+        "arguments_count": emitted_count
+    }
+    yield f"event: completed\ndata: {json.dumps(completed_payload)}\n\n"
+
 @app.post("/api/analyze/stream")
 async def analyze_essay_stream(request: EssayRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Essay text cannot be empty.")
         
+    stream_func = stream_analysis_v2 if request.version == "v2" else stream_analysis
+    
     return StreamingResponse(
-        stream_analysis(request.text),
+        stream_func(request.text),
         media_type="text/event-stream"
     )
 
@@ -405,7 +691,9 @@ async def analyze_essay(request: EssayRequest):
         raw_spacy_arguments = []
         arguments = []
         
-        async for line in stream_analysis(request.text):
+        stream_func = stream_analysis_v2 if request.version == "v2" else stream_analysis
+        
+        async for line in stream_func(request.text):
             if not line.strip():
                 continue
             if line.startswith("event:"):

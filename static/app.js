@@ -60,6 +60,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         resultsCountBadge.textContent = "0 Arguments Extracted";
 
         const argumentsArray = [];
+        const seenArguments = new Set();
         let globalConcepts = null;
         let globalRawArguments = null;
         let processedChunksCount = 0;
@@ -71,13 +72,16 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
         argumentsList.innerHTML = "";
 
+        const versionSelect = document.getElementById("version-select");
+        const version = versionSelect ? versionSelect.value : "v1";
+
         try {
             const response = await fetch("/api/analyze/stream", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ text })
+                body: JSON.stringify({ text, version })
             });
 
             if (!response.ok) {
@@ -188,34 +192,108 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 progressText.textContent = `Processed chunk ${processedChunksCount} of ${totalChunksCount}...`;
 
                 argumentsListChunk.forEach((arg) => {
-                    argumentsArray.push(arg);
-                    
-                    const cardIndex = argumentsArray.length - 1;
-                    
-                    let status = "invalid";
-                    if (arg.is_valid) {
-                        const hasWarnings = arg.violations && arg.violations.some(v => v.is_warning);
-                        if (hasWarnings) {
-                            status = "warning";
+                    const hashStr = (arg.original_text || "") + "|" + (arg.minor_term || "") + "|" + (arg.major_term || "");
+                    if (!seenArguments.has(hashStr)) {
+                        seenArguments.add(hashStr);
+                        argumentsArray.push(arg);
+                        
+                        if (arg.is_assumption) {
                             warningCount++;
                             animateValueUpdate(statWarnings, warningCount);
+                        } else if (arg.is_valid) {
+                            const hasWarnings = arg.violations && arg.violations.some(v => v.is_warning);
+                            if (hasWarnings) {
+                                warningCount++;
+                                animateValueUpdate(statWarnings, warningCount);
+                            } else {
+                                validCount++;
+                                animateValueUpdate(statValid, validCount);
+                            }
                         } else {
-                            status = "valid";
-                            validCount++;
-                            animateValueUpdate(statValid, validCount);
+                            invalidCount++;
+                            animateValueUpdate(statInvalid, invalidCount);
                         }
-                    } else {
-                        invalidCount++;
-                        animateValueUpdate(statInvalid, invalidCount);
                     }
+                });
 
-                    resultsCountBadge.textContent = `${argumentsArray.length} Argument${argumentsArray.length > 1 ? 's' : ''} Extracted`;
+                argumentsArray.sort((a, b) => (a.global_index || 0) - (b.global_index || 0));
+
+                argumentsList.innerHTML = "";
+                resultsCountBadge.textContent = `${argumentsArray.length} Argument${argumentsArray.length > 1 ? 's' : ''} Extracted`;
+
+                argumentsArray.forEach((arg, cardIndex) => {
+                    let status = "invalid";
+                    if (arg.is_assumption) {
+                        status = "warning";
+                    } else if (arg.is_valid) {
+                        const hasWarnings = arg.violations && arg.violations.some(v => v.is_warning);
+                        status = hasWarnings ? "warning" : "valid";
+                    }
 
                     const cardInstance = cardTemplate.content.cloneNode(true);
 
-                    cardInstance.querySelector(".arg-index").textContent = `Argument #${cardIndex + 1}`;
+                    if (arg.is_assumption) {
+                        cardInstance.querySelector(".arg-index").textContent = `Assumption #${cardIndex + 1}`;
+                        cardInstance.querySelector(".arg-title-area h3").textContent = "Unproven Assumption";
+                        const syllogismTitle = cardInstance.querySelector(".syllogism-structure h4");
+                        if (syllogismTitle) {
+                            syllogismTitle.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Flagged Assumption`;
+                        }
+                        cardInstance.querySelector(".arg-rationale").classList.add("hidden");
+                        cardInstance.querySelector(".arg-body-grid").classList.add("hidden");
+                        cardInstance.querySelector(".arg-fallacies-section").classList.add("hidden");
+                    } else {
+                        cardInstance.querySelector(".arg-index").textContent = `Argument #${cardIndex + 1}`;
+                    }
+                    
                     cardInstance.querySelector(".excerpt-text").textContent = `"${arg.original_text}"`;
-                    cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
+                    
+                    if (!arg.is_assumption) {
+                        cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
+
+                        const premises = arg.reconstructed_syllogism.premises;
+                        const conclusion = arg.reconstructed_syllogism.conclusion;
+
+                        fillPropRow(cardInstance.querySelector(".prop-row.premise-1"), premises[0]);
+                        
+                        const p2Row = cardInstance.querySelector(".prop-row.premise-2");
+                        if (premises && premises.length > 1) {
+                            fillPropRow(p2Row, premises[1]);
+                        } else {
+                            p2Row.classList.add("hidden");
+                        }
+
+                        fillPropRow(cardInstance.querySelector(".prop-row.conclusion-prop"), conclusion);
+
+                        const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
+                        diagramWrapper.innerHTML = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion, cardIndex);
+
+                        cardInstance.querySelector(".term-minor-val").textContent = arg.minor_term || "[None]";
+                        cardInstance.querySelector(".term-major-val").textContent = arg.major_term || "[None]";
+                        cardInstance.querySelector(".term-middle-val").textContent = arg.middle_term || "[None]";
+
+                        const fallaciesSection = cardInstance.querySelector(".arg-fallacies-section");
+                        const fallaciesList = cardInstance.querySelector(".fallacies-list");
+
+                        if (arg.violations && arg.violations.length > 0) {
+                            fallaciesSection.classList.remove("hidden");
+                            arg.violations.forEach(v => {
+                                const fallCard = document.createElement("div");
+                                fallCard.className = "fallacy-violation-card";
+                                fallCard.setAttribute("data-warning", v.is_warning ? "true" : "false");
+
+                                fallCard.innerHTML = `
+                                    <div class="fallacy-title-row">
+                                        <i class="${v.is_warning ? 'fa-solid fa-circle-info' : 'fa-solid fa-circle-xmark'}"></i>
+                                        <h5>${v.title}</h5>
+                                    </div>
+                                    <p class="fallacy-desc">${v.description}</p>
+                                    <p class="fallacy-details">${v.details}</p>
+                                `;
+                                fallaciesList.appendChild(fallCard);
+                            });
+                        }
+                    }
 
                     const badge = cardInstance.querySelector(".status-badge");
                     badge.setAttribute("data-status", status);
@@ -223,7 +301,10 @@ However, others claim that all cats are animals and all dogs are animals, which 
                     const badgeIcon = badge.querySelector("i");
                     const badgeText = badge.querySelector(".status-text");
 
-                    if (status === "valid") {
+                    if (arg.is_assumption) {
+                        badgeIcon.className = "fa-solid fa-circle-info";
+                        badgeText.textContent = "Assumption";
+                    } else if (status === "valid") {
                         badgeIcon.className = "fa-solid fa-circle-check";
                         badgeText.textContent = "Valid";
                     } else if (status === "warning") {
@@ -232,49 +313,6 @@ However, others claim that all cats are animals and all dogs are animals, which 
                     } else {
                         badgeIcon.className = "fa-solid fa-triangle-exclamation";
                         badgeText.textContent = "Fallacious";
-                    }
-
-                    const premises = arg.reconstructed_syllogism.premises;
-                    const conclusion = arg.reconstructed_syllogism.conclusion;
-
-                    fillPropRow(cardInstance.querySelector(".prop-row.premise-1"), premises[0]);
-                    
-                    const p2Row = cardInstance.querySelector(".prop-row.premise-2");
-                    if (premises.length > 1) {
-                        fillPropRow(p2Row, premises[1]);
-                    } else {
-                        p2Row.classList.add("hidden");
-                    }
-
-                    fillPropRow(cardInstance.querySelector(".prop-row.conclusion-prop"), conclusion);
-
-                    const diagramWrapper = cardInstance.querySelector(".svg-diagram-wrapper");
-                    diagramWrapper.innerHTML = drawEulerDiagram(arg.minor_term, arg.major_term, arg.middle_term, status, premises, conclusion, cardIndex);
-
-                    cardInstance.querySelector(".term-minor-val").textContent = arg.minor_term || "[None]";
-                    cardInstance.querySelector(".term-major-val").textContent = arg.major_term || "[None]";
-                    cardInstance.querySelector(".term-middle-val").textContent = arg.middle_term || "[None]";
-
-                    const fallaciesSection = cardInstance.querySelector(".arg-fallacies-section");
-                    const fallaciesList = cardInstance.querySelector(".fallacies-list");
-
-                    if (arg.violations && arg.violations.length > 0) {
-                        fallaciesSection.classList.remove("hidden");
-                        arg.violations.forEach(v => {
-                            const fallCard = document.createElement("div");
-                            fallCard.className = "fallacy-violation-card";
-                            fallCard.setAttribute("data-warning", v.is_warning ? "true" : "false");
-
-                            fallCard.innerHTML = `
-                                <div class="fallacy-title-row">
-                                    <i class="${v.is_warning ? 'fa-solid fa-circle-info' : 'fa-solid fa-circle-xmark'}"></i>
-                                    <h5>${v.title}</h5>
-                                </div>
-                                <p class="fallacy-desc">${v.description}</p>
-                                <p class="fallacy-details">${v.details}</p>
-                            `;
-                            fallaciesList.appendChild(fallCard);
-                        });
                     }
 
                     argumentsList.appendChild(cardInstance);
