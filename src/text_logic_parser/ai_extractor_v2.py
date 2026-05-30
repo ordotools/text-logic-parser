@@ -114,3 +114,52 @@ class AIExtractorV2:
             if isinstance(e, (GeminiConfigurationError, GeminiAPIError)):
                 raise
             raise GeminiAPIError(status_code=500, message=f"Unexpected error in Gemini client: {str(e)}")
+
+    async def async_check_statement_of_fact(self, client: httpx.AsyncClient, statement: str) -> bool:
+        """
+        Uses Gemini API to determine if a statement is a mere statement of fact/observation,
+        or a genuine philosophical/logical assumption.
+        Returns True if it's a statement of fact, False otherwise.
+        """
+        if not self.api_keys and not self.api_key:
+            raise GeminiConfigurationError("GEMINI_API_KEY environment variable is not set.")
+            
+        import random
+        api_key = random.choice(self.api_keys) if self.api_keys else self.api_key
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={api_key}"
+        
+        prompt = (
+            "Determine whether the following statement is merely a statement of fact/observation, "
+            "or a true philosophical/logical assumption. "
+            "A statement of fact is an empirical observation or a descriptive statement about the world (e.g. 'The sky is blue', 'Socrates is a man', 'Dogs bark'). "
+            "A true assumption is a foundational premise, a normative claim, or a theoretical postulate used to build an argument (e.g. 'All men are mortal', 'Justice is the highest good').\n\n"
+            f"Statement: \"{statement}\"\n\n"
+            "Respond ONLY with a JSON object containing a single boolean field 'is_statement_of_fact'."
+        )
+        
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "temperature": 0.0
+            }
+        }
+        headers = {"Content-Type": "application/json"}
+        
+        try:
+            response = await client.post(url, json=payload, headers=headers, timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                if "candidates" in data and data["candidates"]:
+                    response_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    result = json.loads(response_text)
+                    return result.get("is_statement_of_fact", False)
+            return False
+        except Exception:
+            # If it fails, default to False to keep the assumption
+            return False

@@ -226,4 +226,31 @@ def find_candidate_arguments(clauses: List[Dict[str, Any]]) -> List[Dict[str, An
             seen_term_pairs.add(term_signature)
             deduped_candidates.append(cand)
             
-    return deduped_candidates
+    # 1. Gather all premise term signatures from syllogisms and enthymemes
+    valid_premise_signatures = []
+    for cand in deduped_candidates:
+        if cand["type"] in ("syllogism", "enthymeme"):
+            for p in cand["premises"]:
+                p_terms = p["terms"]
+                p_signature = tuple(sorted(p_terms[:2]))
+                valid_premise_signatures.append(p_signature)
+
+    final_candidates = []
+    for cand in deduped_candidates:
+        if cand["type"] == "assumption":
+            conc_terms = cand["conclusion"]["terms"]
+            term_signature = tuple(sorted(conc_terms[:2]))
+            
+            # An assumption must be used as a premise elsewhere
+            is_used_as_premise = False
+            for p_sig in valid_premise_signatures:
+                if term_signature == p_sig:
+                    is_used_as_premise = True
+                    break
+                    
+            if not is_used_as_premise:
+                continue
+                
+        final_candidates.append(cand)
+
+    return final_candidates

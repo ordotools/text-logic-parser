@@ -427,14 +427,23 @@ async def stream_analysis_v2(text: str):
     queue = asyncio.Queue()
     assumptions_list = []
     
-    for idx, cand in enumerate(candidates):
-        if cand["type"] == "assumption":
+    extractor_v2 = AIExtractorV2()
+    
+    assumption_cands = [(idx, cand) for idx, cand in enumerate(candidates) if cand["type"] == "assumption"]
+    
+    if assumption_cands:
+        async def process_assumption(idx, cand, client):
+            statement_text = cand["conclusion"]["original_text"]
+            is_fact = await extractor_v2.async_check_statement_of_fact(client, statement_text)
+            if is_fact:
+                return None
+            
             formatted_conclusion = {
                 "quantifier": None, "subject": cand["conclusion"]["subject"],
                 "copula": "is", "predicate": cand["conclusion"]["predicate"],
             }
-            assumptions_list.append({
-                "original_text": cand["conclusion"]["original_text"],
+            return {
+                "original_text": statement_text,
                 "rationale": "Flagged as assumption (no supporting premises found).",
                 "reconstructed_syllogism": {
                     "premises": [],
@@ -447,8 +456,17 @@ async def stream_analysis_v2(text: str):
                 "is_valid": False,
                 "is_assumption": True,
                 "global_index": idx
-            })
-        else:
+            }
+
+        async with httpx.AsyncClient() as check_client:
+            tasks = [process_assumption(idx, cand, check_client) for idx, cand in assumption_cands]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for res in results:
+                if res and not isinstance(res, Exception):
+                    assumptions_list.append(res)
+                    
+    for idx, cand in enumerate(candidates):
+        if cand["type"] != "assumption":
             await queue.put((idx, cand, 0))
 
     if assumptions_list:
@@ -462,7 +480,6 @@ async def stream_analysis_v2(text: str):
         }
         yield f"event: chunk_result\ndata: {json.dumps(chunk_data)}\n\n"
 
-    extractor_v2 = AIExtractorV2()
     emitted_count = len(assumptions_list)
     seen_reconstructed = set()
     seen_argument_lemmas = []
