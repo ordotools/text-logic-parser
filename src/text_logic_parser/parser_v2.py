@@ -190,9 +190,15 @@ def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
                 terms.add(subject_term.lower())
             
             # Extract nouns/key terms from predicate to serve as the predicate term match
-            for pt in nlp(predicate_term):
-                if pt.pos_ in ("NOUN", "PROPN", "ADJ") and len(pt.lemma_) > 2:
-                    terms.add(pt.lemma_.lower())
+            if predicate_term != "unknown_predicate":
+                for pt in nlp(predicate_term):
+                    if pt.pos_ in ("NOUN", "PROPN", "ADJ") and len(pt.lemma_) > 2:
+                        terms.add(pt.lemma_.lower())
+            else:
+                # Fallback: if we couldn't find a predicate, extract all nouns and adjectives from the clause itself
+                for t in clause_doc:
+                    if t.pos_ in ("NOUN", "PROPN", "ADJ") and len(t.lemma_) > 2:
+                        terms.add(t.lemma_.lower())
                     
             if not terms:
                 # Fallback to key terms in the clause
