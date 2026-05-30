@@ -27,32 +27,77 @@ def clean_text_v2(text: str) -> str:
     # Join with space
     return " ".join(cleaned_lines)
 
-def resolve_pronouns(doc, concepts: Dict[str, Any]) -> Dict[spacy.tokens.Token, str]:
+def get_pronoun_candidates(pronoun_token: spacy.tokens.Token, history: List[Dict[str, Any]]) -> List[str]:
     """
-    A lightweight heuristic to resolve pronouns to the most recent matching key term/noun chunk.
+    A heuristic to find probable antecedents based on morphology (Number/Gender) and recent clauses.
     """
-    resolved_map = {}
-    valid_nouns = []
-    for chunk in doc.noun_chunks:
-        if chunk.root.pos_ in ("NOUN", "PROPN"):
-            valid_nouns.append(chunk.text)
+    candidates = []
+    
+    pron_text = pronoun_token.text.lower()
+    morph = pronoun_token.morph
+    p_gender = morph.get("Gender")
+    p_gender = p_gender[0] if p_gender else None
+    p_number = morph.get("Number")
+    p_number = p_number[0] if p_number else None
+    
+    is_masc = pron_text in ("he", "him", "his") or p_gender == "Masc"
+    is_fem = pron_text in ("she", "her", "hers") or p_gender == "Fem"
+    is_neut = pron_text in ("it", "its") or p_gender == "Neut"
+    is_plur = pron_text in ("they", "them", "their") or p_number == "Plur"
+    is_dem = pron_text in ("this", "that", "these", "those")
+    
+    scored = []
+    for item in reversed(history):
+        score = 0
+        if item["type"] == "CLAUSE":
+            if is_dem or is_neut:
+                score += 5
+            else:
+                continue
+        else:
+            i_number = item.get("number")
+            i_gender = item.get("gender")
+            i_entity = item.get("entity_label")
             
-    # Include key terms and entities
-    for k in concepts.get("key_terms", []):
-        if k not in valid_nouns:
-            valid_nouns.append(k)
-            
-    recent_noun = None
-    for token in doc:
-        if token.pos_ in ("NOUN", "PROPN") and token.text in valid_nouns:
-            recent_noun = token.text
-        elif token.pos_ == "PRON" and recent_noun:
-            # Very basic resolution: map to the most recent noun seen.
-            # In a real system, we'd check gender/number matching.
-            if token.text.lower() in ("he", "she", "it", "they", "his", "her", "its", "their", "this", "that"):
-                resolved_map[token] = recent_noun
+            if is_plur:
+                if i_number == "Plur": score += 3
+                elif i_number == "Sing": score -= 5
+            elif p_number == "Sing":
+                if i_number == "Sing": score += 1
+                elif i_number == "Plur": score -= 5
                 
-    return resolved_map
+            if is_masc:
+                if i_gender == "Masc": score += 3
+                elif i_gender in ("Fem", "Neut"): score -= 5
+                elif i_entity == "PERSON": score += 1
+            elif is_fem:
+                if i_gender == "Fem": score += 3
+                elif i_gender in ("Masc", "Neut"): score -= 5
+                elif i_entity == "PERSON": score += 1
+            elif is_neut:
+                if i_gender == "Neut": score += 3
+                elif i_gender in ("Masc", "Fem"): score -= 5
+                elif i_entity not in ("PERSON", None): score += 1
+                elif i_entity == "PERSON": score -= 5
+                
+        scored.append((score, item["text"]))
+        
+    scored.sort(key=lambda x: x[0], reverse=True)
+    
+    seen = set()
+    for score, text in scored:
+        if score > -3 and text not in seen:
+            seen.add(text)
+            candidates.append(text)
+            if len(candidates) >= 3:
+                break
+                
+    if not candidates:
+        if history:
+            return [history[-1]["text"]]
+        return [pron_text]
+        
+    return candidates
 
 def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
     """
@@ -66,11 +111,13 @@ def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
     text = clean_text_v2(text)
     doc = nlp(text)
     concepts = analyze_text_concepts(text, nlp)
-    resolved_pronouns = resolve_pronouns(doc, concepts)
     
     clauses = []
+    history = []
     
     for i, sent in enumerate(doc.sents):
+        sent_entities = {ent.text: ent.label_ for ent in sent.ents}
+        
         # We can use the existing _split_coordinate_clauses to get individual clauses from a sentence
         sub_clauses = _split_coordinate_clauses(sent.text, nlp)
         
@@ -89,28 +136,30 @@ def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
                 
             subject_term = None
             predicate_term = None
+            subject_candidates = []
+            predicate_candidates = []
+            original_subj_pronoun = None
+            original_pred_pronoun = None
             
             # Find subject
             for child in root.children:
                 if child.dep_ in ("nsubj", "nsubjpass", "csubj"):
-                    # Check if pronoun to resolve
-                    original_subj = child.text
-                    resolved_subj = original_subj
-                    
-                    # Try to map token from original doc to clause doc
-                    # (this is approximate based on string match for simplicity)
-                    for orig_token, res_val in resolved_pronouns.items():
-                        if orig_token.text == child.text:
-                            resolved_subj = res_val
-                            break
-                            
-                    subject_term = resolved_subj
+                    subject_term = child.text
+                    if child.pos_ == "PRON":
+                        original_subj_pronoun = child.text
+                        subject_candidates = get_pronoun_candidates(child, history)
+                        subject_term = subject_candidates[0] if subject_candidates else child.text
                     break
                     
             # Find predicate
             for child in root.children:
                 if child.dep_ in ("attr", "acomp", "dobj", "prep", "xcomp"):
-                    predicate_term = "".join([t.text + t.whitespace_ for t in child.subtree]).strip()
+                    if child.pos_ == "PRON":
+                        original_pred_pronoun = child.text
+                        predicate_candidates = get_pronoun_candidates(child, history)
+                        predicate_term = predicate_candidates[0] if predicate_candidates else child.text
+                    else:
+                        predicate_term = "".join([t.text + t.whitespace_ for t in child.subtree]).strip()
                     break
                     
             if not subject_term:
@@ -118,6 +167,23 @@ def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
             if not predicate_term:
                 predicate_term = "unknown_predicate"
                 
+            # Add current nouns and clause to history
+            for token in clause_doc:
+                if token.pos_ in ("NOUN", "PROPN"):
+                    morph = token.morph
+                    history.append({
+                        "text": token.text,
+                        "type": "NOUN",
+                        "number": morph.get("Number")[0] if morph.get("Number") else None,
+                        "gender": morph.get("Gender")[0] if morph.get("Gender") else None,
+                        "entity_label": sent_entities.get(token.text)
+                    })
+            
+            history.append({
+                "text": f'[Clause: "{raw_clause}"]',
+                "type": "CLAUSE"
+            })
+            
             # Collect terms
             terms = set()
             if subject_term != "unknown_subject":
@@ -139,6 +205,10 @@ def extract_clauses_v2(text: str, nlp=None) -> List[Dict[str, Any]]:
                 "sentence_index": i,
                 "subject": subject_term,
                 "predicate": predicate_term,
+                "subject_candidates": subject_candidates,
+                "predicate_candidates": predicate_candidates,
+                "original_subj_pronoun": original_subj_pronoun,
+                "original_pred_pronoun": original_pred_pronoun,
                 "terms": list(terms)
             })
             

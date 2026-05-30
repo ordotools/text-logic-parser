@@ -412,8 +412,34 @@ async def stream_analysis_v2(text: str):
     yield f"event: metadata\ndata: {json.dumps(metadata)}\n\n"
 
     from text_logic_parser.parser import nlp_engine
+    extractor_v2 = AIExtractorV2()
     try:
         clauses = extract_clauses_v2(text, nlp_engine)
+        
+        async with httpx.AsyncClient() as client:
+            for clause in clauses:
+                sub_cands = clause.get("subject_candidates")
+                if sub_cands and len(sub_cands) > 1:
+                    resolved = await extractor_v2.async_resolve_ambiguous_pronoun(
+                        client, clause["original_text"], clause["original_subj_pronoun"], sub_cands
+                    )
+                    if resolved != clause["subject"]:
+                        clause["terms"] = [resolved.lower() if t == clause["subject"].lower() else t for t in clause["terms"]]
+                        if resolved.lower() not in clause["terms"]:
+                            clause["terms"].append(resolved.lower())
+                        clause["subject"] = resolved
+                        
+                pred_cands = clause.get("predicate_candidates")
+                if pred_cands and len(pred_cands) > 1:
+                    resolved = await extractor_v2.async_resolve_ambiguous_pronoun(
+                        client, clause["original_text"], clause["original_pred_pronoun"], pred_cands
+                    )
+                    if resolved != clause["predicate"]:
+                        clause["terms"] = [resolved.lower() if t == clause["predicate"].lower() else t for t in clause["terms"]]
+                        if resolved.lower() not in clause["terms"]:
+                            clause["terms"].append(resolved.lower())
+                        clause["predicate"] = resolved
+
         candidates = find_candidate_arguments(clauses)
     except Exception as e:
         logger.error(f"Error extracting candidates: {e}")
@@ -437,8 +463,6 @@ async def stream_analysis_v2(text: str):
         
     queue = asyncio.Queue()
     assumptions_list = []
-    
-    extractor_v2 = AIExtractorV2()
     
     assumption_cands = [(idx, cand) for idx, cand in enumerate(candidates) if cand["type"] == "assumption"]
     
