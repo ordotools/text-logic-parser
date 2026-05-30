@@ -61,7 +61,8 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
             </div>
 
             <div class="action-bar">
-                <select id="version-select" class="btn-secondary" style="margin-right: 1rem; padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
+                <select id="version-select" class="btn-secondary"
+                    style="margin-right: 1rem; padding: 0.5rem 1rem; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--card-bg); color: var(--text-color);">
                     <option value="v1">Version 1 (Current)</option>
                     <option value="v2">Version 2 (Experimental)</option>
                 </select>
@@ -142,8 +143,8 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
         <section id="results-section" class="results-container hidden animate-fade-in">
             <div class="results-overview">
                 <div class="overview-header">
-                    <h2><i id="results-title-icon" class="fa-solid fa-chart-column"></i> <span
-                            id="results-title-text">Analysis Dashboard</span></h2>
+                    <h2><i id="results-title-icon" class="fa-solid fa-chart-column"></i> <span id="results-title-text">
+                            Analysis</span></h2>
                     <span id="results-count-badge" class="count-badge">0 Arguments Extracted</span>
                 </div>
                 <!-- Integrated progress bar under the header -->
@@ -171,6 +172,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
                         </div>
                     </div>
                     <div class="overview-stat card" style="display: none;">
+                        <!-- TODO: add this back in when we implement the truth analysis... -->
                         <i class="fa-solid fa-circle-info stat-icon warning"></i>
                         <div class="stat-info">
                             <span class="stat-value" id="stat-warnings">0</span>
@@ -327,7 +329,7 @@ Socrates is mortal because he is a man. Furthermore, all men are mortal. However
         </article>
     </template>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 
 </html>

@@ -424,6 +424,17 @@ async def stream_analysis_v2(text: str):
     if total_chunks == 0:
         total_chunks = 1
         
+    # Emit initial total chunks so UI updates immediately from '0 of 1'
+    init_chunk_data = {
+        "event": "chunk_result",
+        "chunk_index": -1,
+        "arguments": [],
+        "status": "success",
+        "total_chunks": total_chunks,
+        "processed_chunks": 0
+    }
+    yield f"event: chunk_result\ndata: {json.dumps(init_chunk_data)}\n\n"
+        
     queue = asyncio.Queue()
     assumptions_list = []
     

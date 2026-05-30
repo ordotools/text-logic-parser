@@ -41,6 +41,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
         // Reset integrated progress header state
         setLoading(false);
+        document.getElementById("header-progress-status").classList.add("hidden");
     });
 
     analyzeBtn.addEventListener("click", async () => {
@@ -59,6 +60,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         statWarnings.textContent = "0";
         resultsCountBadge.textContent = "0 Arguments Extracted";
 
+        const startTime = performance.now();
         const argumentsArray = [];
         const seenArguments = new Set();
         let globalConcepts = null;
@@ -163,17 +165,25 @@ However, others claim that all cats are animals and all dogs are animals, which 
             const progressText = document.getElementById("header-progress-text");
             const retryBadge = document.getElementById("header-retry-badge");
             const titleText = document.getElementById("results-title-text");
+            const titleIcon = document.getElementById("results-title-icon");
 
             if (event === "metadata") {
                 totalChunksCount = data.total_chunks || 1;
-                globalConcepts = data.concepts || {};
-                globalRawArguments = data.raw_spacy_arguments || [];
-
+                
+                if (data.concepts) {
+                    globalConcepts = data.concepts;
+                }
+                if (data.raw_spacy_arguments) {
+                    globalRawArguments = data.raw_spacy_arguments;
+                }
+                
                 renderConceptsAndRawSpacyArgs(globalConcepts, globalRawArguments);
 
-                titleText.textContent = "Extracting Logical Arguments...";
-                progressText.textContent = `Processing chunk 0 of ${totalChunksCount}...`;
+                titleText.textContent = "Extracting Logic...";
+                titleIcon.className = "fa-solid fa-microchip text-gold animate-pulse";
+                
                 progressFill.style.width = "5%";
+                progressText.textContent = `Processing chunk 1 of ${totalChunksCount}...`;
 
                 document.getElementById("spacy-concepts-card").classList.remove("hidden");
             }
@@ -182,14 +192,16 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 progressText.textContent = `Retrying chunk #${data.chunk_index + 1} (attempt ${data.attempt}/3)...`;
             }
             else if (event === "chunk_result") {
-                processedChunksCount = data.processed_chunks || processedChunksCount;
+                totalChunksCount = data.total_chunks || totalChunksCount;
+                processedChunksCount = data.processed_chunks !== undefined ? data.processed_chunks : processedChunksCount;
                 const argumentsListChunk = data.arguments || [];
 
                 retryBadge.classList.add("hidden");
 
                 const pct = Math.min(95, Math.round((processedChunksCount / totalChunksCount) * 100));
                 progressFill.style.width = `${pct}%`;
-                progressText.textContent = `Processed chunk ${processedChunksCount} of ${totalChunksCount}...`;
+                const displayCount = Math.min(processedChunksCount + 1, totalChunksCount);
+                progressText.textContent = `Processing chunk ${displayCount} of ${totalChunksCount}...`;
 
                 argumentsListChunk.forEach((arg) => {
                     const hashStr = (arg.minor_term || "") + "|" + (arg.major_term || "") + "|" + (arg.middle_term || "");
@@ -323,7 +335,8 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 const progressText = document.getElementById("header-progress-text");
 
                 progressFill.style.width = "100%";
-                progressText.textContent = "Analysis completed!";
+                const timeInSec = ((performance.now() - startTime) / 1000).toFixed(1);
+                progressText.textContent = `Analysis finished in ${timeInSec} sec`;
 
                 setTimeout(() => {
                     setLoading(false);
@@ -377,10 +390,10 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
             // Deactivate progress bar and status in dashboard header
             progressContainer.classList.remove("active");
-            progressStatus.classList.add("hidden");
+            // Do not hide progressStatus here to avoid UI jump
 
             // Restore default title and icon
-            titleText.textContent = "Analysis Dashboard";
+            titleText.textContent = "Analysis";
             titleIcon.className = "fa-solid fa-chart-column";
         }
     }
@@ -774,8 +787,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
             <rect x="165" y="186" width="100" height="18" rx="4" fill="rgba(10, 13, 22, 0.85)" stroke="rgba(236, 72, 153, 0.3)" stroke-width="1" />
             <text x="215" y="199" font-family="Outfit, sans-serif" font-size="10" font-weight="600" fill="#ec4899" text-anchor="middle">P: ${P}</text>
 
-            <!-- Center logic status overlay icon -->
-            ${iconOverlay}
+            <!-- Center logic status overlay icon removed to reduce distraction -->
         </svg>
         `;
     }
