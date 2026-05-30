@@ -38,7 +38,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
         resultsSection.classList.add("hidden");
         document.getElementById("spacy-concepts-card").classList.add("hidden");
         document.querySelector(".app-container").classList.remove("layout-three-columns");
-        
+
         // Reset integrated progress header state
         setLoading(false);
     });
@@ -89,7 +89,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 try {
                     const errorData = await response.json();
                     errorMsg = errorData.detail || errorData.message || errorData.error || errorMsg;
-                } catch(e) {}
+                } catch (e) { }
                 throw new Error(errorMsg);
             }
 
@@ -103,7 +103,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
                 buffer += decoder.decode(value, { stream: true });
                 const lines = buffer.split("\n");
-                
+
                 // Save the last incomplete line back to the buffer
                 buffer = lines.pop();
 
@@ -147,7 +147,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                         try {
                             const data = JSON.parse(dataStr);
                             handleStreamEvent(eventType, data);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                 }
             }
@@ -168,15 +168,15 @@ However, others claim that all cats are animals and all dogs are animals, which 
                 totalChunksCount = data.total_chunks || 1;
                 globalConcepts = data.concepts || {};
                 globalRawArguments = data.raw_spacy_arguments || [];
-                
+
                 renderConceptsAndRawSpacyArgs(globalConcepts, globalRawArguments);
-                
+
                 titleText.textContent = "Extracting Logical Arguments...";
                 progressText.textContent = `Processing chunk 0 of ${totalChunksCount}...`;
                 progressFill.style.width = "5%";
-                
+
                 document.getElementById("spacy-concepts-card").classList.remove("hidden");
-            } 
+            }
             else if (event === "chunk_retry") {
                 retryBadge.classList.remove("hidden");
                 progressText.textContent = `Retrying chunk #${data.chunk_index + 1} (attempt ${data.attempt}/3)...`;
@@ -184,19 +184,19 @@ However, others claim that all cats are animals and all dogs are animals, which 
             else if (event === "chunk_result") {
                 processedChunksCount = data.processed_chunks || processedChunksCount;
                 const argumentsListChunk = data.arguments || [];
-                
+
                 retryBadge.classList.add("hidden");
-                
+
                 const pct = Math.min(95, Math.round((processedChunksCount / totalChunksCount) * 100));
                 progressFill.style.width = `${pct}%`;
                 progressText.textContent = `Processed chunk ${processedChunksCount} of ${totalChunksCount}...`;
 
                 argumentsListChunk.forEach((arg) => {
-                    const hashStr = (arg.original_text || "") + "|" + (arg.minor_term || "") + "|" + (arg.major_term || "");
+                    const hashStr = (arg.minor_term || "") + "|" + (arg.major_term || "") + "|" + (arg.middle_term || "");
                     if (!seenArguments.has(hashStr)) {
                         seenArguments.add(hashStr);
                         argumentsArray.push(arg);
-                        
+
                         if (arg.is_assumption) {
                             warningCount++;
                             animateValueUpdate(statWarnings, warningCount);
@@ -245,9 +245,9 @@ However, others claim that all cats are animals and all dogs are animals, which 
                     } else {
                         cardInstance.querySelector(".arg-index").textContent = `Argument #${cardIndex + 1}`;
                     }
-                    
+
                     cardInstance.querySelector(".excerpt-text").textContent = `"${arg.original_text}"`;
-                    
+
                     if (!arg.is_assumption) {
                         cardInstance.querySelector(".rationale-text").textContent = arg.rationale || "Reconstructed from text context.";
 
@@ -255,7 +255,7 @@ However, others claim that all cats are animals and all dogs are animals, which 
                         const conclusion = arg.reconstructed_syllogism.conclusion;
 
                         fillPropRow(cardInstance.querySelector(".prop-row.premise-1"), premises[0]);
-                        
+
                         const p2Row = cardInstance.querySelector(".prop-row.premise-2");
                         if (premises && premises.length > 1) {
                             fillPropRow(p2Row, premises[1]);
@@ -324,10 +324,10 @@ However, others claim that all cats are animals and all dogs are animals, which 
 
                 progressFill.style.width = "100%";
                 progressText.textContent = "Analysis completed!";
-                
+
                 setTimeout(() => {
                     setLoading(false);
-                    
+
                     if (argumentsArray.length === 0) {
                         alert("No logical arguments could be identified in the text. Ensure your text contains logical claims, assertions, or assumptions.");
                     } else {
@@ -353,32 +353,32 @@ However, others claim that all cats are animals and all dogs are animals, which 
             analyzeBtn.disabled = true;
             analyzeBtn.querySelector(".btn-text").classList.add("hidden");
             analyzeBtn.querySelector(".btn-loading-spinner").classList.remove("hidden");
-            
+
             // Show columns immediately when submitted
             resultsSection.classList.remove("hidden");
             document.getElementById("spacy-concepts-card").classList.remove("hidden");
             document.querySelector(".app-container").classList.add("layout-three-columns");
-            
+
             // Activate progress bar and status in dashboard header
             progressContainer.classList.add("active");
             progressStatus.classList.remove("hidden");
-            
+
             // Set initial loading states
             progressFill.style.width = "0%";
             progressText.textContent = "Connecting to logic parser...";
             retryBadge.classList.add("hidden");
-            
+
             titleText.textContent = "Reading Essay & Unifying Terms...";
             titleIcon.className = "fa-solid fa-spinner fa-spin text-gold";
         } else {
             analyzeBtn.disabled = false;
             analyzeBtn.querySelector(".btn-text").classList.remove("hidden");
             analyzeBtn.querySelector(".btn-loading-spinner").classList.add("hidden");
-            
+
             // Deactivate progress bar and status in dashboard header
             progressContainer.classList.remove("active");
             progressStatus.classList.add("hidden");
-            
+
             // Restore default title and icon
             titleText.textContent = "Analysis Dashboard";
             titleIcon.className = "fa-solid fa-chart-column";
@@ -436,17 +436,17 @@ However, others claim that all cats are animals and all dogs are animals, which 
             rawSpacyArguments.forEach((arg, index) => {
                 const item = document.createElement("div");
                 item.className = "raw-arg-item animate-slide-up";
-                
+
                 let premisesHtml = "";
                 arg.raw_premises.forEach((p, idx) => {
                     premisesHtml += `
                         <div class="raw-arg-prop-row">
-                            <span class="label">Premise ${idx+1}:</span>
+                            <span class="label">Premise ${idx + 1}:</span>
                             <span class="val">${p}</span>
                         </div>
                     `;
                 });
-                
+
                 item.innerHTML = `
                     <div class="raw-arg-title">Argument candidate #${index + 1}</div>
                     <div class="raw-arg-props">

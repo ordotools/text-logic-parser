@@ -464,6 +464,8 @@ async def stream_analysis_v2(text: str):
 
     extractor_v2 = AIExtractorV2()
     emitted_count = len(assumptions_list)
+    seen_reconstructed = set()
+    seen_argument_lemmas = []
 
     concurrency_ceiling = 10
     workers_count = min(concurrency_ceiling, total_chunks) if total_chunks > 0 else 1
@@ -579,6 +581,51 @@ async def stream_analysis_v2(text: str):
                         )
                         
                         syll = Syllogism(premises, conclusion)
+
+                        # Semantic Deduplication using Overlap Coefficient on logical terms
+                        is_duplicate = False
+                        if nlp_engine:
+                            combined_terms = f"{syll.minor_term} {syll.major_term} {syll.middle_term}"
+                            doc_lemmas = nlp_engine(combined_terms)
+                            current_lemmas = set(t.lemma_.lower() for t in doc_lemmas if not t.is_punct and not t.is_stop)
+                            
+                            for seen_lemmas in seen_argument_lemmas:
+                                if not current_lemmas or not seen_lemmas:
+                                    continue
+                                intersection = current_lemmas.intersection(seen_lemmas)
+                                intersection_len = len(intersection)
+                                min_len = min(len(current_lemmas), len(seen_lemmas))
+                                union_len = len(current_lemmas.union(seen_lemmas))
+                                
+                                jaccard = intersection_len / union_len if union_len > 0 else 0
+                                overlap = intersection_len / min_len if min_len > 0 else 0
+                                
+                                # Require at least 2 matching lemmas for pure overlap to prevent 1-word 100% false positives
+                                if (intersection_len >= 2 and overlap >= 0.80) or jaccard >= 0.50:
+                                    is_duplicate = True
+                                    break
+                                    
+                            if is_duplicate:
+                                continue
+                                
+                            seen_argument_lemmas.append(current_lemmas)
+
+                        # Backup: Strict logical form deduplication
+                        def norm_prop(p):
+                            return (
+                                p.quantifier if p.quantifier else "",
+                                normalize_term(p.subject),
+                                p.copula,
+                                normalize_term(p.predicate)
+                            )
+                        p_tuples = tuple(sorted(norm_prop(p) for p in premises))
+                        c_tuple = norm_prop(conclusion)
+                        arg_key = (p_tuples, c_tuple)
+                        
+                        if arg_key in seen_reconstructed:
+                            continue
+                        seen_reconstructed.add(arg_key)
+                        
                         violations = validate_syllogism(syll)
                         is_valid = not any(not v.get("is_warning", False) for v in violations)
                         
